@@ -55,6 +55,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
+- CI: `.github/workflows/ci.yml` （Codex セッション4で追加）
+  - Windows上でPython 3.12をセットアップ
+  - APIユニットテスト、OpenAPIプライバシーlint、standalone toolsの構文チェックを実行
 
 ### 新エンドポイント
 
@@ -98,6 +101,7 @@ Add full-flow API load test tool
 
 ```text
 Add OpenAPI privacy lint
+Add GitHub Actions CI
 ```
 
 ## 実行方法
@@ -156,6 +160,20 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 
 ```text
 OpenAPI privacy lint passed
+```
+
+## CI
+
+`.github/workflows/ci.yml` で以下を自動実行する。
+
+```powershell
+Set-Location services\api
+python -m unittest discover -s tests
+
+Set-Location ..\..
+python tools\lint_openapi_privacy.py
+python -m py_compile tools\loadtest.py
+python -m py_compile tools\lint_openapi_privacy.py
 ```
 
 ## 負荷試験
@@ -245,7 +263,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
    - 公開掲示板の検索フィルター（receipt_hash部分一致）
    - 候補者ごとの色分け
    - 監査ログのテーブル表示
-5. **CI追加**: `python -m unittest discover -s services/api/tests` と `tools/lint_openapi_privacy.py` をGitHub Actionsで実行する。
+5. **CI拡充**: GitHub Actionsの最小CIは追加済み。次は負荷試験を手動実行workflowに分離し、SQLite smoke load testを任意実行できるようにする。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。
 

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run API unit tests
+        working-directory: services/api
+        run: python -m unittest discover -s tests
+
+      - name: Run OpenAPI privacy lint
+        run: python tools/lint_openapi_privacy.py
+
+      - name: Compile standalone tools
+        run: |
+          python -m py_compile tools/loadtest.py
+          python -m py_compile tools/lint_openapi_privacy.py
