@@ -41,6 +41,7 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 公開掲示板のreceipt_hash部分一致フィルター、監査ログ直近テーブル表示を追加（Codex セッション4）
   - 受領証検証結果をJSON表示から状態ラベル表示へ変更（Codex セッション5）
   - 候補者カードの色分け、集計プレビューの候補者別バー表示を追加（Codex セッション6）
+  - 候補者名・政党名などAPI由来表示値のHTMLエスケープを追加（Codex セッション6）
 - API定義: `docs/api/openapi.yaml`
   - 全エンドポイントのレスポンススキーマ追加
   - エラー応答 `{error:{code,message}}` 統一スキーマ追加

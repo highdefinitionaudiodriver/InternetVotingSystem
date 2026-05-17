@@ -44,8 +44,8 @@ function renderCandidates(candidates) {
         <label class="candidate" style="--candidate-color: ${candidateColor(candidate.candidate_id)}">
           <input type="radio" name="candidate" value="${candidate.candidate_id}">
           <span>
-            <strong>${candidate.display_name}</strong>
-            <span>${candidate.party || "無所属"}</span>
+            <strong>${escapeHtml(candidate.display_name)}</strong>
+            <span>${escapeHtml(candidate.party || "無所属")}</span>
           </span>
         </label>
       `,
