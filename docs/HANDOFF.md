@@ -40,6 +40,7 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 受領証検証パネル・監査ログ整合性チェックパネルを追加
   - 公開掲示板のreceipt_hash部分一致フィルター、監査ログ直近テーブル表示を追加（Codex セッション4）
   - 受領証検証結果をJSON表示から状態ラベル表示へ変更（Codex セッション5）
+  - 候補者カードの色分け、集計プレビューの候補者別バー表示を追加（Codex セッション6）
 - API定義: `docs/api/openapi.yaml`
   - 全エンドポイントのレスポンススキーマ追加
   - エラー応答 `{error:{code,message}}` 統一スキーマ追加
@@ -277,8 +278,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 2. **FastAPI移行**: 標準ライブラリHTTPサーバーは並行性能と型付けに弱い。FastAPI＋Pydantic化し、OpenAPI を自動生成に切り替える。
 3. **暗号ライブラリの実装差し替え**: `DemoCryptoSuite` のインターフェースを保ったまま、`blind-rsa-signatures` (Rust経由) ＋ `ristretto255` ベースのElGamal実装に置換。Pythonからは PyO3 バインディング or subprocess で呼ぶ。
 4. **Webクライアントの強化**:
-   - 候補者ごとの色分け
-   - 集計プレビューをJSONではなく候補者別バー表示へ変更
+   - 集計プレビューから受領証検証や公開掲示板への導線を追加
 5. **CI拡充**: 最小CIと手動スモーク負荷試験workflowは追加済み。次はGitHub Actionsの実行結果を見て、必要なら `loadtest.yml` の起動待ちやタイムアウトを調整する。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。

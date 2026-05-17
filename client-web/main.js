@@ -1,6 +1,7 @@
 const electionId = "demo-2026";
 let voterHash = "";
 let selectedCandidate = "";
+let candidateCache = [];
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,6 +25,7 @@ function api(path, options = {}) {
 
 let lastReceiptHash = "";
 let boardCache = [];
+const candidateColors = ["#2f7d6d", "#a7563f", "#5d6fb1", "#8a6d2f", "#6f5a8f", "#35708a"];
 
 function escapeHtml(value) {
   return String(value)
@@ -35,10 +37,11 @@ function escapeHtml(value) {
 }
 
 function renderCandidates(candidates) {
+  candidateCache = candidates;
   $("candidates").innerHTML = candidates
     .map(
       (candidate) => `
-        <label class="candidate">
+        <label class="candidate" style="--candidate-color: ${candidateColor(candidate.candidate_id)}">
           <input type="radio" name="candidate" value="${candidate.candidate_id}">
           <span>
             <strong>${candidate.display_name}</strong>
@@ -56,6 +59,16 @@ function renderCandidates(candidates) {
       $("voteStatus").value = "投票準備ができました";
     });
   });
+}
+
+function candidateColor(candidateId) {
+  const index = Math.max(0, candidateCache.findIndex((candidate) => candidate.candidate_id === candidateId));
+  return candidateColors[index % candidateColors.length];
+}
+
+function candidateLabel(candidateId) {
+  const candidate = candidateCache.find((item) => item.candidate_id === candidateId);
+  return candidate ? candidate.display_name : candidateId;
 }
 
 async function loadElection() {
@@ -180,7 +193,37 @@ async function refreshBoard() {
 
 async function tally() {
   const result = await api(`/elections/${electionId}/tally`);
-  $("tally").textContent = JSON.stringify(result, null, 2);
+  renderTally(result);
+}
+
+function renderTally(result) {
+  const entries = Object.entries(result.counts);
+  const maxVotes = Math.max(1, ...entries.map(([, count]) => count));
+  $("tally").innerHTML = `
+    <div class="tally-summary">
+      <strong>有効票 ${escapeHtml(result.accepted_ballots)}</strong>
+      <span>${escapeHtml(result.election_id)}</span>
+    </div>
+    <div class="tally-bars">
+      ${entries
+        .map(([candidateId, count]) => {
+          const width = Math.round((count / maxVotes) * 100);
+          return `
+            <div class="tally-row" style="--candidate-color: ${candidateColor(candidateId)}">
+              <div class="tally-label">
+                <strong>${escapeHtml(candidateLabel(candidateId))}</strong>
+                <span>${escapeHtml(candidateId)}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: ${width}%"></div>
+              </div>
+              <strong class="vote-count">${escapeHtml(count)}</strong>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
 }
 
 $("authButton").addEventListener("click", () => authenticate().catch((error) => ($("authStatus").value = error.message)));

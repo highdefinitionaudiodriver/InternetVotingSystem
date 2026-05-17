@@ -159,6 +159,7 @@ output {
   min-height: 48px;
   padding: 12px;
   border: 1px solid #cfd9ca;
+  border-left: 6px solid var(--candidate-color, #185f6f);
   border-radius: 6px;
   cursor: pointer;
 }
@@ -265,6 +266,73 @@ pre {
   background: #fff0f0;
 }
 
+.tally {
+  display: grid;
+  gap: 14px;
+  min-height: 120px;
+}
+
+.tally-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+}
+
+.tally-summary span {
+  color: #64748b;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.tally-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.tally-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 1fr 54px;
+  align-items: center;
+  gap: 12px;
+}
+
+.tally-label {
+  display: grid;
+  gap: 2px;
+}
+
+.tally-label strong {
+  color: #1b2430;
+  font-size: 14px;
+}
+
+.tally-label span {
+  color: #64748b;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.bar-track {
+  height: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eee4;
+}
+
+.bar-fill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--candidate-color, #185f6f);
+}
+
+.vote-count {
+  text-align: right;
+  color: #1b2430;
+}
+
 .hint {
   margin: 0;
   color: #4a5563;
@@ -297,7 +365,12 @@ pre {
   }
 
   .record,
-  .row {
+  .row,
+  .tally-row {
     grid-template-columns: 1fr;
+  }
+
+  .vote-count {
+    text-align: left;
   }
 }
