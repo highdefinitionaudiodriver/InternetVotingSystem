@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 3 作業中)
+最終更新: 2026-05-17 (Codex セッション 4 作業中)
 
 ## 作業場所
 
@@ -45,12 +45,16 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_voting_service.py` （既存4件）
   - `test_audit_and_receipts.py` （NEW、4件）
   - `test_sqlite_repository.py` （NEW、5件）
-  - 計13件すべてパス
+  - `test_openapi_privacy_lint.py` （Codex セッション4で追加、3件）
+  - 計16件すべてパス
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
 - 性能メモ: `docs/performance.md` （Codex セッション3で追加）
   - メモリ/SQLiteストレージで `--voters 20 --concurrency 4 --verify-receipts` のスモーク負荷試験結果を記録
+- OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
+  - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
+  - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
 
 ### 新エンドポイント
 
@@ -88,6 +92,12 @@ e978180 Add SQLite repository, receipt verification, audit-chain integrity
 
 ```text
 Add full-flow API load test tool
+```
+
+セッション 4 コミット候補:
+
+```text
+Add OpenAPI privacy lint
 ```
 
 ## 実行方法
@@ -129,8 +139,23 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 期待値:
 
 ```text
-Ran 13 tests
+Ran 16 tests
 OK
+```
+
+## OpenAPIプライバシーlint
+
+リポジトリルートから実行する。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_openapi_privacy.py
+```
+
+期待値:
+
+```text
+OpenAPI privacy lint passed
 ```
 
 ## 負荷試験
@@ -205,7 +230,11 @@ Copy-Item -LiteralPath `
 `tests/test_audit_and_receipts.py::MyNumberAbsenceTest` が、主要レスポンスに
 `mynumber` / `individual_number` / `my_number` / `個人番号` のいずれかが
 含まれていれば失敗する。新エンドポイントを追加する場合は、このテストを
-壊さないこと。OpenAPI Linter にも同じルールを将来追加する予定。
+壊さないこと。
+
+Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。OpenAPIの
+フィールド名・スキーマ名・パラメータ名に同種の禁止語が入ると失敗する。
+説明文で「禁止事項」として言及する文言は許容する設計。
 
 ## 次の推奨作業（優先順）
 
@@ -216,7 +245,7 @@ Copy-Item -LiteralPath `
    - 公開掲示板の検索フィルター（receipt_hash部分一致）
    - 候補者ごとの色分け
    - 監査ログのテーブル表示
-5. **OpenAPI Linter**: `mynumber` 等を禁止するカスタムルールを Spectral で追加し、CIに組み込む。
+5. **CI追加**: `python -m unittest discover -s services/api/tests` と `tools/lint_openapi_privacy.py` をGitHub Actionsで実行する。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。
 

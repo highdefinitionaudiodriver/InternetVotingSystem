@@ -55,6 +55,15 @@ Set-Location services\api
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
 ```
 
+## OpenAPIプライバシーlint
+
+OpenAPIのフィールド名・スキーマ名・パラメータ名に、マイナンバー取得を示す名前が混入していないか確認できます。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_openapi_privacy.py
+```
+
 ## 負荷試験
 
 APIサーバーを起動した状態で、別ターミナルからフルフローの簡易負荷試験を実行できます。
