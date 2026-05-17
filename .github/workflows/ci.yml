@@ -18,12 +18,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Run API unit tests
         working-directory: services/api
         run: python -m unittest discover -s tests
 
       - name: Run OpenAPI privacy lint
         run: python tools/lint_openapi_privacy.py
+
+      - name: Check web client JavaScript
+        run: node --check client-web/main.js
 
       - name: Compile standalone tools
         run: |

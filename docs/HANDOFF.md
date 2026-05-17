@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 11 作業中)
+最終更新: 2026-05-17 (Codex セッション 12 作業中)
 
 ## 作業場所
 
@@ -71,6 +71,7 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - CI: `.github/workflows/ci.yml` （Codex セッション4で追加）
   - Windows上でPython 3.12をセットアップ
   - APIユニットテスト、OpenAPIプライバシーlint、standalone toolsの構文チェックを実行
+  - Node.js 24をセットアップし、`node --check client-web/main.js` を実行（Codex セッション12）
 - 手動スモーク負荷試験CI: `.github/workflows/loadtest.yml` （Codex セッション5で追加）
   - `workflow_dispatch` で `memory|sqlite`、voters、concurrency、receipt検証有無を指定して実行
   - Actions上でAPIサーバーを起動し、`tools/loadtest.py` を実行して終了時にサーバーを停止
