@@ -89,3 +89,27 @@ class VotingService:
 
     def tally(self, election_id: str) -> dict[str, Any]:
         return self.repository.tally(election_id)
+
+    def verify_receipt(self, election_id: str, receipt_hash: str) -> dict[str, Any]:
+        """Cast-as-Intended / Recorded-as-Cast verification by receipt hash.
+
+        Returns the public ballot record if found, plus a recomputed receipt
+        hash so the client can detect any silent mutation server-side. The
+        voter's identity is never returned — only the public record fields.
+        """
+        self.repository.get_election(election_id)
+        ballot = self.repository.find_ballot_by_receipt(election_id, receipt_hash)
+        if ballot is None:
+            return {"found": False, "receipt_hash": receipt_hash}
+        recomputed = self.crypto.receipt_hash(ballot.ballot_id, ballot.blind_token_hash)
+        return {
+            "found": True,
+            "receipt_hash": receipt_hash,
+            "recomputed_receipt_hash": recomputed,
+            "integrity_ok": recomputed == receipt_hash,
+            "ballot": ballot.public_record(),
+        }
+
+    def verify_audit_chain(self) -> dict[str, Any]:
+        """Expose audit-log integrity verification (hash-chain replay)."""
+        return self.repository.verify_audit_chain()

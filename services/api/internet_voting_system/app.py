@@ -7,7 +7,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
 
+from .repository import InMemoryRepository
 from .service import VotingService
+from .sqlite_repository import SqliteRepository
 
 
 def json_bytes(data: Any) -> bytes:
@@ -15,10 +17,15 @@ def json_bytes(data: Any) -> bytes:
 
 
 class VotingRequestHandler(BaseHTTPRequestHandler):
-    service = VotingService()
+    # Re-assigned in main() once the storage backend is chosen.
+    service: VotingService = VotingService()
 
     def log_message(self, format: str, *args: Any) -> None:
         return
+
+    def _send_error(self, status: HTTPStatus, code: str, message: str) -> None:
+        """Standardised error envelope. See docs/api/openapi.yaml#ApiError."""
+        self._send_json(status, {"error": {"code": code, "message": message}})
 
     def _send_json(self, status: HTTPStatus, data: Any) -> None:
         payload = json_bytes(data)
@@ -61,17 +68,23 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
             if len(path) == 3 and path[0] == "elections" and path[2] == "tally":
                 self._send_json(HTTPStatus.OK, self.service.tally(path[1]))
                 return
+            if len(path) == 4 and path[0] == "elections" and path[2] == "receipts":
+                self._send_json(HTTPStatus.OK, self.service.verify_receipt(path[1], path[3]))
+                return
             if path == ["audit-log"]:
                 self._send_json(
                     HTTPStatus.OK,
                     {"audit_log": [entry.to_dict() for entry in self.service.repository.audit_logs]},
                 )
                 return
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            if path == ["audit-log", "verify"]:
+                self._send_json(HTTPStatus.OK, self.service.verify_audit_chain())
+                return
+            self._send_error(HTTPStatus.NOT_FOUND, "not_found", "resource not found")
         except KeyError as exc:
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+            self._send_error(HTTPStatus.NOT_FOUND, "not_found", str(exc))
         except ValueError as exc:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            self._send_error(HTTPStatus.BAD_REQUEST, "bad_request", str(exc))
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.strip("/").split("/")
@@ -107,20 +120,40 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
                     ),
                 )
                 return
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            self._send_error(HTTPStatus.NOT_FOUND, "not_found", "resource not found")
         except KeyError as exc:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"missing or unknown field: {exc}"})
+            self._send_error(HTTPStatus.BAD_REQUEST, "missing_field", f"missing or unknown field: {exc}")
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            self._send_error(HTTPStatus.BAD_REQUEST, "bad_request", str(exc))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8787, type=int)
+    parser.add_argument(
+        "--storage",
+        default="memory",
+        choices=["memory", "sqlite"],
+        help="Storage backend (memory=volatile, sqlite=durable single-host)",
+    )
+    parser.add_argument(
+        "--sqlite-path",
+        default="voting.sqlite3",
+        help="SQLite database file path (used when --storage=sqlite)",
+    )
     args = parser.parse_args()
+    if args.storage == "sqlite":
+        repository = SqliteRepository(args.sqlite_path)
+    else:
+        repository = InMemoryRepository()
+    VotingRequestHandler.service = VotingService(repository=repository)
     server = ThreadingHTTPServer((args.host, args.port), VotingRequestHandler)
-    print(f"Internet Voting System API listening on http://{args.host}:{args.port}", flush=True)
+    print(
+        f"Internet Voting System API listening on http://{args.host}:{args.port} "
+        f"(storage={args.storage})",
+        flush=True,
+    )
     server.serve_forever()
 
 

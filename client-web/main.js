@@ -11,10 +11,18 @@ function api(path, options = {}) {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
   }).then(async (response) => {
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || response.statusText);
+    if (!response.ok) {
+      // Standardised error envelope is { error: { code, message } }.
+      const message =
+        (data && data.error && (data.error.message || data.error)) ||
+        response.statusText;
+      throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    }
     return data;
   });
 }
+
+let lastReceiptHash = "";
 
 function renderCandidates(candidates) {
   $("candidates").innerHTML = candidates
@@ -81,8 +89,25 @@ async function vote() {
       zk_proof: prepared.zk_proof,
     }),
   });
+  lastReceiptHash = receipt.receipt_hash;
   $("voteStatus").value = `受領証: ${receipt.receipt_hash}`;
+  $("receiptInput").value = receipt.receipt_hash;
   await refreshBoard();
+}
+
+async function verifyReceipt() {
+  const hash = $("receiptInput").value.trim();
+  if (!hash) {
+    $("receiptResult").textContent = "receipt_hash を入力してください";
+    return;
+  }
+  const result = await api(`/elections/${electionId}/receipts/${encodeURIComponent(hash)}`);
+  $("receiptResult").textContent = JSON.stringify(result, null, 2);
+}
+
+async function verifyAudit() {
+  const result = await api(`/audit-log/verify`);
+  $("auditResult").textContent = JSON.stringify(result, null, 2);
 }
 
 async function refreshBoard() {
@@ -109,6 +134,8 @@ $("authButton").addEventListener("click", () => authenticate().catch((error) => 
 $("voteButton").addEventListener("click", () => vote().catch((error) => ($("voteStatus").value = error.message)));
 $("refreshButton").addEventListener("click", () => refreshBoard().catch((error) => ($("bulletinBoard").textContent = error.message)));
 $("tallyButton").addEventListener("click", () => tally().catch((error) => ($("tally").textContent = error.message)));
+$("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").textContent = error.message)));
+$("auditButton").addEventListener("click", () => verifyAudit().catch((error) => ($("auditResult").textContent = error.message)));
 
 loadElection().catch((error) => {
   $("authStatus").value = error.message;

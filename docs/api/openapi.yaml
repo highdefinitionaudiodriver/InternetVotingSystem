@@ -1,21 +1,41 @@
 openapi: 3.1.0
 info:
   title: Internet Voting System Prototype API
-  version: 0.1.0
+  version: 0.2.0
+  description: |
+    Prototype API for the My-Number-Card-based internet voting system.
+
+    Security and privacy posture:
+    - The 12-digit individual number (マイナンバー) MUST NOT appear in any
+      request, response, or schema. Pull-request linters reject any change
+      that introduces `mynumber`, `individual_number`, or `個人番号` fields.
+    - The receipt-verification endpoint returns only the public ballot
+      record; it never returns voter identity, voter_hash, or plaintext.
 servers:
   - url: http://127.0.0.1:8787
+
 paths:
   /health:
     get:
+      summary: Liveness probe
       responses:
         "200":
-          description: Health check
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
   /elections:
     get:
       summary: List elections
       responses:
         "200":
           description: Election list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionList"
     post:
       summary: Create election
       requestBody:
@@ -26,7 +46,14 @@ paths:
               $ref: "#/components/schemas/CreateElection"
       responses:
         "201":
-          description: Created
+          description: Created election
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /elections/{electionId}:
     get:
       summary: Get election
@@ -35,9 +62,20 @@ paths:
       responses:
         "200":
           description: Election
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /elections/{electionId}/authenticate:
     post:
       summary: Verify JPKI certificate and voter eligibility
+      description: |
+        Verifies the user-certificate metadata against the electoral roll.
+        The 12-digit individual number is intentionally absent from this
+        request body and from the response.
       parameters:
         - $ref: "#/components/parameters/ElectionId"
       requestBody:
@@ -45,17 +83,17 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [certificate_serial, birthdate]
-              properties:
-                certificate_serial:
-                  type: string
-                birthdate:
-                  type: string
-                  format: date
+              $ref: "#/components/schemas/AuthenticateRequest"
       responses:
         "200":
-          description: Authenticated voter hash
+          description: Authenticated voter handle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /elections/{electionId}/issue-token:
     post:
       summary: Issue a blind-signed voting token
@@ -66,17 +104,20 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [voter_hash]
-              properties:
-                voter_hash:
-                  type: string
+              $ref: "#/components/schemas/IssueTokenRequest"
       responses:
         "201":
           description: Issued token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueTokenResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /elections/{electionId}/prepare-vote:
     post:
-      summary: Demo client-side encryption and membership proof helper
+      summary: Demo client-side encryption + membership proof helper
       parameters:
         - $ref: "#/components/parameters/ElectionId"
       requestBody:
@@ -84,14 +125,17 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [candidate_id]
-              properties:
-                candidate_id:
-                  type: string
+              $ref: "#/components/schemas/PrepareVoteRequest"
       responses:
         "200":
           description: Encrypted vote and proof
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrepareVoteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /elections/{electionId}/ballots:
     post:
       summary: Submit encrypted ballot
@@ -102,26 +146,55 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [blind_token, encrypted_vote, zk_proof]
-              properties:
-                blind_token:
-                  type: string
-                encrypted_vote:
-                  $ref: "#/components/schemas/EncryptedVote"
-                zk_proof:
-                  type: string
+              $ref: "#/components/schemas/SubmitBallotRequest"
       responses:
         "201":
           description: Public receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicBallot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /elections/{electionId}/bulletin-board:
     get:
-      summary: Public ballot board
+      summary: Public ballot bulletin board
       parameters:
         - $ref: "#/components/parameters/ElectionId"
       responses:
         "200":
-          description: Public records
+          description: Public records (no voter identity)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulletinBoard"
+
+  /elections/{electionId}/receipts/{receiptHash}:
+    get:
+      summary: Verify a receipt (Cast-as-Intended / Recorded-as-Cast)
+      description: |
+        Looks up a receipt by its hash and returns the matching public ballot
+        record together with a server-recomputed receipt hash so the client
+        can detect any silent server-side mutation.
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+        - name: receiptHash
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptVerification"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /elections/{electionId}/tally:
     get:
       summary: Compute demo tally
@@ -129,13 +202,34 @@ paths:
         - $ref: "#/components/parameters/ElectionId"
       responses:
         "200":
-          description: Candidate counts
+          description: Candidate counts (latest vote per token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tally"
+
   /audit-log:
     get:
       summary: Hash-chained audit log
       responses:
         "200":
-          description: Audit log
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLog"
+
+  /audit-log/verify:
+    get:
+      summary: Re-verify the audit-log hash chain end-to-end
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditChainVerification"
+
 components:
   parameters:
     ElectionId:
@@ -144,7 +238,44 @@ components:
       required: true
       schema:
         type: string
+
+  responses:
+    BadRequest:
+      description: Validation failure
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
   schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code (e.g. "bad_request").
+            message:
+              type: string
+
     Candidate:
       type: object
       required: [candidate_id, display_name]
@@ -155,33 +286,182 @@ components:
           type: string
         party:
           type: string
+
+    Election:
+      type: object
+      required: [election_id, title, starts_at, ends_at, status, candidates]
+      properties:
+        election_id: { type: string }
+        title:       { type: string }
+        starts_at:   { type: string, format: date-time }
+        ends_at:     { type: string, format: date-time }
+        status:      { type: string, enum: [open, closed] }
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Candidate"
+
+    ElectionList:
+      type: object
+      required: [elections]
+      properties:
+        elections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Election"
+
     CreateElection:
       type: object
       required: [election_id, title, starts_at, ends_at, candidates]
       properties:
-        election_id:
-          type: string
-        title:
-          type: string
-        starts_at:
-          type: string
-          format: date-time
-        ends_at:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [open, closed]
+        election_id: { type: string }
+        title:       { type: string }
+        starts_at:   { type: string, format: date-time }
+        ends_at:     { type: string, format: date-time }
+        status:      { type: string, enum: [open, closed] }
         candidates:
           type: array
           minItems: 1
           items:
             $ref: "#/components/schemas/Candidate"
+
+    AuthenticateRequest:
+      type: object
+      required: [certificate_serial, birthdate]
+      properties:
+        certificate_serial:
+          type: string
+          description: Serial number of the JPKI user-certificate. Never the individual number.
+        birthdate:
+          type: string
+          format: date
+
+    AuthenticateResponse:
+      type: object
+      required: [election_id, voter_hash, eligible, token_issued, revote_count]
+      properties:
+        election_id:  { type: string }
+        voter_hash:   { type: string, description: "SHA-256 hash; not linkable across elections." }
+        eligible:     { type: boolean }
+        token_issued: { type: boolean }
+        revote_count: { type: integer, minimum: 0 }
+
+    IssueTokenRequest:
+      type: object
+      required: [voter_hash]
+      properties:
+        voter_hash: { type: string }
+
+    IssueTokenResponse:
+      type: object
+      required: [election_id, blind_token, blind_token_hash, revote_count]
+      properties:
+        election_id:      { type: string }
+        blind_token:      { type: string }
+        blind_token_hash: { type: string }
+        revote_count:     { type: integer, minimum: 1 }
+
     EncryptedVote:
       type: object
       required: [nonce, ciphertext]
       properties:
-        nonce:
-          type: string
-        ciphertext:
-          type: string
+        nonce:      { type: string }
+        ciphertext: { type: string }
+
+    PrepareVoteRequest:
+      type: object
+      required: [candidate_id]
+      properties:
+        candidate_id: { type: string }
+
+    PrepareVoteResponse:
+      type: object
+      required: [encrypted_vote, zk_proof]
+      properties:
+        encrypted_vote:
+          $ref: "#/components/schemas/EncryptedVote"
+        zk_proof: { type: string }
+
+    SubmitBallotRequest:
+      type: object
+      required: [blind_token, encrypted_vote, zk_proof]
+      properties:
+        blind_token:    { type: string }
+        encrypted_vote:
+          $ref: "#/components/schemas/EncryptedVote"
+        zk_proof:       { type: string }
+
+    PublicBallot:
+      type: object
+      required: [ballot_id, election_id, blind_token_hash, received_at_bucket, sequence_in_bucket, revote_serial, receipt_hash]
+      properties:
+        ballot_id:          { type: string, format: uuid }
+        election_id:        { type: string }
+        blind_token_hash:   { type: string }
+        received_at_bucket: { type: string, format: date-time, description: "Rounded to a 5-minute bucket." }
+        sequence_in_bucket: { type: integer, minimum: 1 }
+        revote_serial:      { type: integer, minimum: 1 }
+        receipt_hash:       { type: string }
+
+    BulletinBoard:
+      type: object
+      required: [election_id, ballots]
+      properties:
+        election_id: { type: string }
+        ballots:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicBallot"
+
+    ReceiptVerification:
+      type: object
+      required: [found, receipt_hash]
+      properties:
+        found:                   { type: boolean }
+        receipt_hash:            { type: string }
+        recomputed_receipt_hash: { type: string }
+        integrity_ok:            { type: boolean }
+        ballot:
+          $ref: "#/components/schemas/PublicBallot"
+
+    Tally:
+      type: object
+      required: [election_id, accepted_ballots, counts]
+      properties:
+        election_id:      { type: string }
+        accepted_ballots: { type: integer, minimum: 0 }
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+
+    AuditLogEntry:
+      type: object
+      required: [log_id, prev_hash, log_hash, component, event_type, payload, occurred_at]
+      properties:
+        log_id:      { type: integer, minimum: 1 }
+        prev_hash:   { type: string }
+        log_hash:    { type: string }
+        component:   { type: string }
+        event_type:  { type: string }
+        payload:     { type: object, additionalProperties: true }
+        occurred_at: { type: string, format: date-time }
+
+    AuditLog:
+      type: object
+      required: [audit_log]
+      properties:
+        audit_log:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+
+    AuditChainVerification:
+      type: object
+      required: [valid, total]
+      properties:
+        valid:     { type: boolean }
+        total:     { type: integer, minimum: 0 }
+        head_hash: { type: string }
+        broken_at: { type: integer, minimum: 1 }

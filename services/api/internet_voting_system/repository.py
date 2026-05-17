@@ -8,14 +8,11 @@ from typing import Any
 
 from .crypto import canonical_json, sha256_hex
 from .models import AuditLogEntry, Ballot, Candidate, Election, VoterStatus, utc_now
+from .repository_base import bucket_5_minutes  # re-exported for backward compatibility
 
 
 def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
-
-
-def bucket_5_minutes(dt: datetime) -> datetime:
-    return dt.replace(minute=dt.minute - (dt.minute % 5), second=0, microsecond=0)
 
 
 class InMemoryRepository:
@@ -151,6 +148,13 @@ class InMemoryRepository:
         with self._lock:
             return [ballot for ballot in self.ballots.values() if ballot.election_id == election_id]
 
+    def find_ballot_by_receipt(self, election_id: str, receipt_hash: str) -> Ballot | None:
+        with self._lock:
+            for ballot in self.ballots.values():
+                if ballot.election_id == election_id and ballot.receipt_hash == receipt_hash:
+                    return ballot
+            return None
+
     def tally(self, election_id: str) -> dict[str, Any]:
         with self._lock:
             election = self.get_election(election_id)
@@ -195,3 +199,26 @@ class InMemoryRepository:
         )
         self.audit_logs.append(entry)
         return entry
+
+    def verify_audit_chain(self) -> dict[str, Any]:
+        """Re-verify the hash chain end-to-end.
+
+        Returns a summary including any broken link (None if intact).
+        """
+        with self._lock:
+            prev = "0" * 64
+            for entry in self.audit_logs:
+                material = canonical_json(
+                    {
+                        "component": entry.component,
+                        "event_type": entry.event_type,
+                        "occurred_at": entry.occurred_at.isoformat(),
+                        "payload": entry.payload,
+                        "prev_hash": prev,
+                    }
+                )
+                expected = sha256_hex(material)
+                if entry.prev_hash != prev or entry.log_hash != expected:
+                    return {"valid": False, "broken_at": entry.log_id, "total": len(self.audit_logs)}
+                prev = entry.log_hash
+            return {"valid": True, "total": len(self.audit_logs), "head_hash": prev}

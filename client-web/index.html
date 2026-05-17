@@ -57,6 +57,24 @@
             </div>
             <pre id="tally"></pre>
           </section>
+
+          <section class="panel">
+            <h2>受領証の検証</h2>
+            <p class="hint">投票後に表示された receipt_hash を貼り付けて、公開掲示板に正しく記録されているか確認します。</p>
+            <label>
+              receipt_hash
+              <input id="receiptInput" placeholder="64桁の16進数" autocomplete="off" />
+            </label>
+            <button id="receiptButton">検証</button>
+            <pre id="receiptResult"></pre>
+          </section>
+
+          <section class="panel">
+            <h2>監査ログ整合性</h2>
+            <p class="hint">ハッシュチェーンを再計算して、過去のログが改ざんされていないことを確認します。</p>
+            <button id="auditButton">整合性チェック</button>
+            <pre id="auditResult"></pre>
+          </section>
         </div>
       </section>
     </main>

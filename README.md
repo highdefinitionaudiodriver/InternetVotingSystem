@@ -15,18 +15,38 @@
 
 ## 実行
 
-```powershell
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787
-```
-
 作業ディレクトリは `services/api` にしてください。
+
+メモリストレージ（揮発・デモ用）:
 
 ```powershell
 Set-Location services\api
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage memory
+```
+
+SQLiteストレージ（永続化・単一ホスト用）:
+
+```powershell
+Set-Location services\api
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage sqlite --sqlite-path voting.sqlite3
 ```
 
 クライアントは `client-web/index.html` をブラウザで開き、API URLに `http://127.0.0.1:8787` を指定します。
+受領証検証パネルと監査ログ整合性チェックパネルが追加されています。
+
+## 主なエンドポイント
+
+- `POST /elections/{id}/authenticate` - JPKI証明書による本人確認
+- `POST /elections/{id}/issue-token` - ブラインド署名投票券発行
+- `POST /elections/{id}/prepare-vote` - 暗号化票とZKP生成
+- `POST /elections/{id}/ballots` - 暗号化票送信
+- `GET  /elections/{id}/bulletin-board` - 公開掲示板
+- `GET  /elections/{id}/receipts/{hash}` - 受領証検証（Cast-as-Intended/Recorded-as-Cast）
+- `GET  /elections/{id}/tally` - 集計プレビュー
+- `GET  /audit-log` - 監査ログ
+- `GET  /audit-log/verify` - 監査ログ・ハッシュチェーン整合性検証
+
+エラー応答は `{ "error": { "code": "...", "message": "..." } }` 形式で統一されています。
 
 ## テスト
 
