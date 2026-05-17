@@ -54,7 +54,11 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_loadtest_tool.py` （Codex セッション7で追加、2件）
   - `test_http_api.py` （Codex セッション8で追加、5件）
   - `test_repository_protocol.py` （Codex セッション9で追加、2件）
-  - 計26件すべてパス
+  - `test_smoke_check_tool.py` （Codex セッション10で追加、1件）
+  - 計27件すべてパス
+- スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
+  - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
+  - CIの構文チェック対象にも追加済み
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
@@ -190,8 +194,27 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 期待値:
 
 ```text
-Ran 26 tests
+Ran 27 tests
 OK
+```
+
+## スモークチェック
+
+APIを起動した状態で、リポジトリルートから実行する。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\smoke_check.py --base-url http://127.0.0.1:8787
+```
+
+期待値:
+
+```json
+{
+  "status": "ok",
+  "election_id": "demo-2026",
+  "receipt_hash": "..."
+}
 ```
 
 ## OpenAPIプライバシーlint

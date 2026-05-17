@@ -64,6 +64,15 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_openapi_privacy.py
 ```
 
+## スモークチェック
+
+APIサーバーを起動した状態で、単一の投票フロー、受領証検証、監査ログ整合性をまとめて確認できます。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\smoke_check.py --base-url http://127.0.0.1:8787
+```
+
 ## 負荷試験
 
 APIサーバーを起動した状態で、別ターミナルからフルフローの簡易負荷試験を実行できます。

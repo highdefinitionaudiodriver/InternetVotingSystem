@@ -27,5 +27,6 @@ jobs:
 
       - name: Compile standalone tools
         run: |
+          python -m py_compile tools/smoke_check.py
           python -m py_compile tools/loadtest.py
           python -m py_compile tools/lint_openapi_privacy.py
