@@ -1,0 +1,187 @@
+openapi: 3.1.0
+info:
+  title: Internet Voting System Prototype API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8787
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: Health check
+  /elections:
+    get:
+      summary: List elections
+      responses:
+        "200":
+          description: Election list
+    post:
+      summary: Create election
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateElection"
+      responses:
+        "201":
+          description: Created
+  /elections/{electionId}:
+    get:
+      summary: Get election
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      responses:
+        "200":
+          description: Election
+  /elections/{electionId}/authenticate:
+    post:
+      summary: Verify JPKI certificate and voter eligibility
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [certificate_serial, birthdate]
+              properties:
+                certificate_serial:
+                  type: string
+                birthdate:
+                  type: string
+                  format: date
+      responses:
+        "200":
+          description: Authenticated voter hash
+  /elections/{electionId}/issue-token:
+    post:
+      summary: Issue a blind-signed voting token
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [voter_hash]
+              properties:
+                voter_hash:
+                  type: string
+      responses:
+        "201":
+          description: Issued token
+  /elections/{electionId}/prepare-vote:
+    post:
+      summary: Demo client-side encryption and membership proof helper
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [candidate_id]
+              properties:
+                candidate_id:
+                  type: string
+      responses:
+        "200":
+          description: Encrypted vote and proof
+  /elections/{electionId}/ballots:
+    post:
+      summary: Submit encrypted ballot
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blind_token, encrypted_vote, zk_proof]
+              properties:
+                blind_token:
+                  type: string
+                encrypted_vote:
+                  $ref: "#/components/schemas/EncryptedVote"
+                zk_proof:
+                  type: string
+      responses:
+        "201":
+          description: Public receipt
+  /elections/{electionId}/bulletin-board:
+    get:
+      summary: Public ballot board
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      responses:
+        "200":
+          description: Public records
+  /elections/{electionId}/tally:
+    get:
+      summary: Compute demo tally
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      responses:
+        "200":
+          description: Candidate counts
+  /audit-log:
+    get:
+      summary: Hash-chained audit log
+      responses:
+        "200":
+          description: Audit log
+components:
+  parameters:
+    ElectionId:
+      name: electionId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    Candidate:
+      type: object
+      required: [candidate_id, display_name]
+      properties:
+        candidate_id:
+          type: string
+        display_name:
+          type: string
+        party:
+          type: string
+    CreateElection:
+      type: object
+      required: [election_id, title, starts_at, ends_at, candidates]
+      properties:
+        election_id:
+          type: string
+        title:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [open, closed]
+        candidates:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Candidate"
+    EncryptedVote:
+      type: object
+      required: [nonce, ciphertext]
+      properties:
+        nonce:
+          type: string
+        ciphertext:
+          type: string

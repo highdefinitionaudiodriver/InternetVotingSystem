@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Internet Voting System</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="workspace" aria-label="投票">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Internet Voting System</p>
+            <h1>デモ選挙 2026</h1>
+          </div>
+          <label class="api">
+            API
+            <input id="apiBase" value="http://127.0.0.1:8787" />
+          </label>
+        </header>
+
+        <div class="grid">
+          <section class="panel">
+            <h2>1. 本人確認</h2>
+            <label>
+              証明書シリアル
+              <input id="certificateSerial" value="CERT-DEMO-000001" autocomplete="off" />
+            </label>
+            <label>
+              生年月日
+              <input id="birthdate" type="date" value="1980-01-01" />
+            </label>
+            <button id="authButton">認証</button>
+            <output id="authStatus">未認証</output>
+          </section>
+
+          <section class="panel">
+            <h2>2. 候補者選択</h2>
+            <div id="candidates" class="candidates"></div>
+            <button id="voteButton" disabled>投票する</button>
+            <output id="voteStatus">候補者を選択してください</output>
+          </section>
+
+          <section class="panel span">
+            <div class="panel-heading">
+              <h2>公開掲示板</h2>
+              <button id="refreshButton">更新</button>
+            </div>
+            <div id="bulletinBoard" class="board"></div>
+          </section>
+
+          <section class="panel span">
+            <div class="panel-heading">
+              <h2>集計プレビュー</h2>
+              <button id="tallyButton">集計</button>
+            </div>
+            <pre id="tally"></pre>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="./main.js"></script>
+  </body>
+</html>
