@@ -48,6 +48,12 @@ class HttpApiTest(unittest.TestCase):
         self.assertEqual("not_found", data["error"]["code"])
         self.assertIn("message", data["error"])
 
+    def test_unknown_receipt_returns_found_false(self) -> None:
+        missing_receipt = "0" * 64
+        status, data = self.request("GET", f"/elections/demo-2026/receipts/{missing_receipt}")
+        self.assertEqual(200, status)
+        self.assertEqual({"found": False, "receipt_hash": missing_receipt}, data)
+
     def test_full_http_voting_flow_and_receipt_verification(self) -> None:
         status, auth = self.request(
             "POST",

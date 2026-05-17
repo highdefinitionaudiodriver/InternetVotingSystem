@@ -42,11 +42,11 @@ class VotingServiceTest(unittest.TestCase):
         self.assertEqual(tally["counts"]["cand-a"], 0)
         self.assertEqual(tally["counts"]["cand-b"], 1)
 
-    def test_rejects_invalid_candidate(self) -> None:
+    def test_rejects_invalid_zk_proof(self) -> None:
         auth = self.service.authenticate_voter(self.election_id, "CERT-INVALID-1", "1980-01-01")
         token = self.service.issue_token(self.election_id, auth["voter_hash"])
         prepared = self.service.prepare_vote(self.election_id, "cand-a")
-        prepared["encrypted_vote"]["ciphertext"] = prepared["encrypted_vote"]["ciphertext"][:-1] + "A"
+        prepared["zk_proof"] = prepared["zk_proof"][:-1] + ("A" if prepared["zk_proof"][-1] != "A" else "B")
 
         with self.assertRaises(ValueError):
             self.service.submit_ballot(

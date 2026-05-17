@@ -176,7 +176,9 @@ paths:
       description: |
         Looks up a receipt by its hash and returns the matching public ballot
         record together with a server-recomputed receipt hash so the client
-        can detect any silent server-side mutation.
+        can detect any silent server-side mutation. Unknown receipts also
+        return 200 with `found: false`; this avoids using error telemetry as
+        a side channel for receipt probing.
       parameters:
         - $ref: "#/components/parameters/ElectionId"
         - name: receiptHash
@@ -187,13 +189,11 @@ paths:
             pattern: "^[0-9a-f]{64}$"
       responses:
         "200":
-          description: Verification result
+          description: Verification result, including `found: false` for unknown receipts
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReceiptVerification"
-        "404":
-          $ref: "#/components/responses/NotFound"
 
   /elections/{electionId}/tally:
     get:
