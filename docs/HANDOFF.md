@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 12 作業中)
+最終更新: 2026-05-17 (Codex セッション 13 作業中)
 
 ## 作業場所
 
@@ -59,6 +59,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
+- ローカル統合チェック: `tools/check_all.py` （Codex セッション13で追加）
+  - APIユニットテスト、OpenAPIプライバシーlint、Web JS構文、standalone tools構文を一括実行
+  - `.github/workflows/ci.yml` もこのツールを呼ぶ形へ変更し、ローカルとCIの実行内容を揃えた
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
@@ -70,8 +73,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
 - CI: `.github/workflows/ci.yml` （Codex セッション4で追加）
   - Windows上でPython 3.12をセットアップ
-  - APIユニットテスト、OpenAPIプライバシーlint、standalone toolsの構文チェックを実行
-  - Node.js 24をセットアップし、`node --check client-web/main.js` を実行（Codex セッション12）
+  - Node.js 24をセットアップ
+  - `tools/check_all.py` を実行（Codex セッション13）
 - 手動スモーク負荷試験CI: `.github/workflows/loadtest.yml` （Codex セッション5で追加）
   - `workflow_dispatch` で `memory|sqlite`、voters、concurrency、receipt検証有無を指定して実行
   - Actions上でAPIサーバーを起動し、`tools/loadtest.py` を実行して終了時にサーバーを停止

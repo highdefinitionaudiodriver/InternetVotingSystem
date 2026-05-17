@@ -23,18 +23,5 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Run API unit tests
-        working-directory: services/api
-        run: python -m unittest discover -s tests
-
-      - name: Run OpenAPI privacy lint
-        run: python tools/lint_openapi_privacy.py
-
-      - name: Check web client JavaScript
-        run: node --check client-web/main.js
-
-      - name: Compile standalone tools
-        run: |
-          python -m py_compile tools/smoke_check.py
-          python -m py_compile tools/loadtest.py
-          python -m py_compile tools/lint_openapi_privacy.py
+      - name: Run all checks
+        run: python tools/check_all.py

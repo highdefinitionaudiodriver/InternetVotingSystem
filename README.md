@@ -55,6 +55,13 @@ Set-Location services\api
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
 ```
 
+CI相当のチェックをまとめて実行する場合:
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\check_all.py
+```
+
 ## OpenAPIプライバシーlint
 
 OpenAPIのフィールド名・スキーマ名・パラメータ名に、マイナンバー取得を示す名前が混入していないか確認できます。
