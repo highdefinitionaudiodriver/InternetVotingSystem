@@ -59,6 +59,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - CI: `.github/workflows/ci.yml` （Codex セッション4で追加）
   - Windows上でPython 3.12をセットアップ
   - APIユニットテスト、OpenAPIプライバシーlint、standalone toolsの構文チェックを実行
+- 手動スモーク負荷試験CI: `.github/workflows/loadtest.yml` （Codex セッション5で追加）
+  - `workflow_dispatch` で `memory|sqlite`、voters、concurrency、receipt検証有無を指定して実行
+  - Actions上でAPIサーバーを起動し、`tools/loadtest.py` を実行して終了時にサーバーを停止
 
 ### 新エンドポイント
 
@@ -81,9 +84,12 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 ### 直近コミット
 
 ```text
+aa30794 Improve bulletin board and audit log UI
+f259a11 Add GitHub Actions CI
+48a43bb Add OpenAPI privacy lint
+a19c9a6 Add full-flow API load test tool
+e978180 Add SQLite repository, receipt verification, audit-chain integrity
 9667200 Add Claude Code handoff guide
-953dd88 Implement internet voting prototype
-1411684 1st commit
 ```
 
 セッション 2 コミット:
@@ -103,6 +109,13 @@ Add full-flow API load test tool
 ```text
 Add OpenAPI privacy lint
 Add GitHub Actions CI
+Improve bulletin board and audit log UI
+```
+
+セッション 5 コミット候補:
+
+```text
+Add manual smoke load test workflow
 ```
 
 ## 実行方法
@@ -211,7 +224,9 @@ Copy-Item -LiteralPath `
 Copy-Item -LiteralPath `
   'C:\Users\highd\Documents\Github\InternetVotingSystem\services',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\client-web',`
-  'C:\Users\highd\Documents\Github\InternetVotingSystem\docs' `
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\docs',`
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\tools',`
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\.github' `
   -Destination 'G:\マイドライブ\claudecode\InternetVotingSystem' -Recurse -Force
 ```
 
@@ -263,7 +278,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 4. **Webクライアントの強化**:
    - 候補者ごとの色分け
    - 受領証検証結果の状態表示をJSONではなく視認しやすいラベル表示へ変更
-5. **CI拡充**: GitHub Actionsの最小CIは追加済み。次は負荷試験を手動実行workflowに分離し、SQLite smoke load testを任意実行できるようにする。
+5. **CI拡充**: 最小CIと手動スモーク負荷試験workflowは追加済み。次はGitHub Actionsの実行結果を見て、必要なら `loadtest.yml` の起動待ちやタイムアウトを調整する。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。
 

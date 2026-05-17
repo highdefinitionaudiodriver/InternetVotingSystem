@@ -1,0 +1,96 @@
+name: Smoke Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      storage:
+        description: "Storage backend to test"
+        required: true
+        default: "memory"
+        type: choice
+        options:
+          - memory
+          - sqlite
+      voters:
+        description: "Number of voter flows"
+        required: true
+        default: "50"
+      concurrency:
+        description: "Concurrent worker count"
+        required: true
+        default: "5"
+      verify_receipts:
+        description: "Verify receipts after ballot submission"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  smoke-load-test:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run smoke load test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $port = 8787
+          $storage = "${{ inputs.storage }}"
+          $sqlitePath = Join-Path $env:RUNNER_TEMP "voting-smoke.sqlite3"
+          $arguments = @(
+            "-m", "internet_voting_system.app",
+            "--host", "127.0.0.1",
+            "--port", "$port",
+            "--storage", $storage
+          )
+          if ($storage -eq "sqlite") {
+            $arguments += @("--sqlite-path", $sqlitePath)
+          }
+
+          $server = Start-Process `
+            -FilePath "python" `
+            -ArgumentList $arguments `
+            -WorkingDirectory "services/api" `
+            -NoNewWindow `
+            -PassThru
+
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              try {
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:$port/health" -TimeoutSec 1
+                if ($health.status -eq "ok") {
+                  $ready = $true
+                  break
+                }
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $ready) {
+              throw "API server did not become ready"
+            }
+
+            $loadArgs = @(
+              "tools/loadtest.py",
+              "--base-url", "http://127.0.0.1:$port",
+              "--voters", "${{ inputs.voters }}",
+              "--concurrency", "${{ inputs.concurrency }}"
+            )
+            if ("${{ inputs.verify_receipts }}" -eq "true") {
+              $loadArgs += "--verify-receipts"
+            }
+            python @loadArgs
+          } finally {
+            if ($server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
