@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 7 作業中)
+最終更新: 2026-05-17 (Codex セッション 11 作業中)
 
 ## 作業場所
 
@@ -74,6 +74,7 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - 手動スモーク負荷試験CI: `.github/workflows/loadtest.yml` （Codex セッション5で追加）
   - `workflow_dispatch` で `memory|sqlite`、voters、concurrency、receipt検証有無を指定して実行
   - Actions上でAPIサーバーを起動し、`tools/loadtest.py` を実行して終了時にサーバーを停止
+  - 負荷試験前に `tools/smoke_check.py` を実行し、基本E2Eが通ってから並列負荷へ進むよう変更（Codex セッション11）
 
 ### 新エンドポイント
 

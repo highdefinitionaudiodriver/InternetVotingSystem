@@ -79,6 +79,8 @@ jobs:
               throw "API server did not become ready"
             }
 
+            python tools/smoke_check.py --base-url "http://127.0.0.1:$port"
+
             $loadArgs = @(
               "tools/loadtest.py",
               "--base-url", "http://127.0.0.1:$port",
