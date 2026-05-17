@@ -8,13 +8,10 @@ import statistics
 import string
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http.client import HTTPConnection, HTTPResponse
 from typing import Any
 from urllib.parse import urlparse
-
-
-DEFAULT_CANDIDATES = ("cand-a", "cand-b", "cand-c")
 
 
 @dataclass(frozen=True)
@@ -25,6 +22,7 @@ class LoadTestConfig:
     concurrency: int
     timeout: float
     verify_receipts: bool
+    candidate_ids: tuple[str, ...]
 
 
 @dataclass
@@ -76,6 +74,22 @@ def assert_success(status: int, data: dict[str, Any], label: str) -> None:
         raise RuntimeError(f"{label} failed with HTTP {status}: {message}")
 
 
+def fetch_candidate_ids(config: LoadTestConfig) -> tuple[str, ...]:
+    client = ApiClient(config.base_url, config.timeout)
+    status, election = client.request("GET", f"/elections/{config.election_id}")
+    assert_success(status, election, "get election")
+    candidate_ids = tuple(str(candidate["candidate_id"]) for candidate in election.get("candidates", []))
+    if not candidate_ids:
+        raise RuntimeError(f"election {config.election_id} has no candidates")
+    return candidate_ids
+
+
+def pick_candidate_id(config: LoadTestConfig, index: int) -> str:
+    if not config.candidate_ids:
+        raise RuntimeError("candidate_ids is empty; fetch election metadata before running the load test")
+    return config.candidate_ids[index % len(config.candidate_ids)]
+
+
 def run_voter_flow(config: LoadTestConfig, index: int) -> FlowResult:
     client = ApiClient(config.base_url, config.timeout)
     started = time.perf_counter()
@@ -94,7 +108,7 @@ def run_voter_flow(config: LoadTestConfig, index: int) -> FlowResult:
         )
         assert_success(status, token, "issue-token")
 
-        candidate_id = DEFAULT_CANDIDATES[index % len(DEFAULT_CANDIDATES)]
+        candidate_id = pick_candidate_id(config, index)
         status, prepared = client.request(
             "POST",
             f"/elections/{config.election_id}/prepare-vote",
@@ -152,6 +166,8 @@ def percentile(values: list[float], ratio: float) -> float:
 
 
 def run_load_test(config: LoadTestConfig) -> dict[str, Any]:
+    if not config.candidate_ids:
+        raise ValueError("candidate_ids must not be empty")
     jobs: queue.Queue[int] = queue.Queue()
     for index in range(config.voters):
         jobs.put(index)
@@ -177,6 +193,7 @@ def run_load_test(config: LoadTestConfig) -> dict[str, Any]:
         "voters": config.voters,
         "concurrency": config.concurrency,
         "verify_receipts": config.verify_receipts,
+        "candidate_count": len(config.candidate_ids),
         "elapsed_seconds": round(elapsed_seconds, 3),
         "throughput_flows_per_second": round(len(results) / elapsed_seconds, 2) if elapsed_seconds else 0,
         "success": len(successful),
@@ -211,11 +228,13 @@ def parse_args() -> LoadTestConfig:
         concurrency=min(args.concurrency, args.voters),
         timeout=args.timeout,
         verify_receipts=args.verify_receipts,
+        candidate_ids=(),
     )
 
 
 def main() -> None:
     config = parse_args()
+    config = replace(config, candidate_ids=fetch_candidate_ids(config))
     report = run_load_test(config)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     if report["failed"]:

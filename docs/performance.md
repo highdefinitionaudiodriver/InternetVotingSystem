@@ -8,6 +8,7 @@
 
 対象フロー:
 
+0. `GET /elections/{id}` で候補者IDを取得
 1. `POST /elections/{id}/authenticate`
 2. `POST /elections/{id}/issue-token`
 3. `POST /elections/{id}/prepare-vote`

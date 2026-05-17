@@ -74,6 +74,7 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 ```
 
 標準出力に成功件数、失敗件数、スループット、レイテンシをJSONで出力します。SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増えます。
+候補者IDは `GET /elections/{id}` から取得するため、`demo-2026` 以外の選挙にも利用できます。
 
 ## 実装上の注意
 

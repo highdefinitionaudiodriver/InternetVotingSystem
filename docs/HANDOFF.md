@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 4 作業中)
+最終更新: 2026-05-17 (Codex セッション 7 作業中)
 
 ## 作業場所
 
@@ -50,10 +50,12 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_audit_and_receipts.py` （NEW、4件）
   - `test_sqlite_repository.py` （NEW、5件）
   - `test_openapi_privacy_lint.py` （Codex セッション4で追加、3件）
-  - 計16件すべてパス
+  - `test_loadtest_tool.py` （Codex セッション7で追加、2件）
+  - 計18件すべてパス
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
+  - 候補者IDを `GET /elections/{id}` から取得するよう変更（Codex セッション7）
 - 性能メモ: `docs/performance.md` （Codex セッション3で追加）
   - メモリ/SQLiteストレージで `--voters 20 --concurrency 4 --verify-receipts` のスモーク負荷試験結果を記録
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
@@ -87,6 +89,10 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 ### 直近コミット
 
 ```text
+5ec8667 Escape candidate display values
+1186ef9 Add tally bars and candidate colors
+e836cb5 Improve receipt verification display
+caf3cca Add manual smoke load test workflow
 aa30794 Improve bulletin board and audit log UI
 f259a11 Add GitHub Actions CI
 48a43bb Add OpenAPI privacy lint
@@ -119,6 +125,19 @@ Improve bulletin board and audit log UI
 
 ```text
 Add manual smoke load test workflow
+```
+
+セッション 6 コミット:
+
+```text
+1186ef9 Add tally bars and candidate colors
+5ec8667 Escape candidate display values
+```
+
+セッション 7 コミット候補:
+
+```text
+Load test candidates from election metadata
 ```
 
 ## 実行方法
@@ -160,7 +179,7 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 期待値:
 
 ```text
-Ran 16 tests
+Ran 18 tests
 OK
 ```
 
