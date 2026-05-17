@@ -54,6 +54,12 @@ class HttpApiTest(unittest.TestCase):
         self.assertEqual(200, status)
         self.assertEqual({"found": False, "receipt_hash": missing_receipt}, data)
 
+    def test_malformed_receipt_hash_returns_bad_request(self) -> None:
+        status, data = self.request("GET", "/elections/demo-2026/receipts/not-a-hash")
+        self.assertEqual(400, status)
+        self.assertEqual("bad_request", data["error"]["code"])
+        self.assertIn("receipt_hash", data["error"]["message"])
+
     def test_full_http_voting_flow_and_receipt_verification(self) -> None:
         status, auth = self.request(
             "POST",

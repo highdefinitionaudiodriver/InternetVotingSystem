@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import uuid
+import re
 from typing import Any
 
 from .crypto import DemoCryptoSuite
 from .repository import InMemoryRepository
+
+RECEIPT_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 class VotingService:
@@ -97,6 +100,8 @@ class VotingService:
         hash so the client can detect any silent mutation server-side. The
         voter's identity is never returned — only the public record fields.
         """
+        if not RECEIPT_HASH_PATTERN.fullmatch(receipt_hash):
+            raise ValueError("receipt_hash must be a 64-character lowercase hex string")
         self.repository.get_election(election_id)
         ballot = self.repository.find_ballot_by_receipt(election_id, receipt_hash)
         if ballot is None:

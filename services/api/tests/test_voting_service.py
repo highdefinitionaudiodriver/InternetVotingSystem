@@ -61,6 +61,10 @@ class VotingServiceTest(unittest.TestCase):
         self.assertNotIn("mynumber", auth)
         self.assertNotIn("individual_number", auth)
 
+    def test_rejects_malformed_receipt_hash(self) -> None:
+        with self.assertRaises(ValueError):
+            self.service.verify_receipt(self.election_id, "not-a-hash")
+
 
 if __name__ == "__main__":
     unittest.main()

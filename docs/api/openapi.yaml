@@ -178,7 +178,8 @@ paths:
         record together with a server-recomputed receipt hash so the client
         can detect any silent server-side mutation. Unknown receipts also
         return 200 with `found: false`; this avoids using error telemetry as
-        a side channel for receipt probing.
+        a side channel for receipt probing. Malformed receipt hashes return
+        `400 bad_request`.
       parameters:
         - $ref: "#/components/parameters/ElectionId"
         - name: receiptHash
@@ -194,6 +195,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReceiptVerification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /elections/{electionId}/tally:
     get:
