@@ -109,6 +109,21 @@ input {
   gap: 12px;
 }
 
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.toolbar.left {
+  justify-content: flex-start;
+}
+
+.compact {
+  min-width: 240px;
+}
+
 button {
   min-height: 42px;
   border: 0;
@@ -178,6 +193,24 @@ output {
   font-size: 13px;
 }
 
+.table {
+  display: grid;
+  gap: 6px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 48px 100px 1fr 96px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #e1e8de;
+  border-radius: 6px;
+  background: #fbfcfa;
+  color: #334155;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 pre {
   min-height: 120px;
   margin: 0;
@@ -210,5 +243,20 @@ pre {
 
   .api {
     min-width: 0;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .compact {
+    min-width: 0;
+  }
+
+  .record,
+  .row {
+    grid-template-columns: 1fr;
   }
 }

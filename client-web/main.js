@@ -23,6 +23,16 @@ function api(path, options = {}) {
 }
 
 let lastReceiptHash = "";
+let boardCache = [];
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 function renderCandidates(candidates) {
   $("candidates").innerHTML = candidates
@@ -110,19 +120,46 @@ async function verifyAudit() {
   $("auditResult").textContent = JSON.stringify(result, null, 2);
 }
 
-async function refreshBoard() {
-  const board = await api(`/elections/${electionId}/bulletin-board`);
-  $("bulletinBoard").innerHTML =
-    board.ballots
+async function loadAuditLog() {
+  const result = await api(`/audit-log`);
+  const entries = result.audit_log.slice(-12).reverse();
+  $("auditLogTable").innerHTML =
+    entries
       .map(
-        (ballot) => `
-          <div class="record">
-            <strong>${ballot.ballot_id}</strong>
-            <span>${ballot.receipt_hash}</span>
+        (entry) => `
+          <div class="row">
+            <span>${escapeHtml(entry.log_id)}</span>
+            <span>${escapeHtml(entry.component)}</span>
+            <span>${escapeHtml(entry.event_type)}</span>
+            <span>${escapeHtml(entry.log_hash.slice(0, 12))}</span>
           </div>
         `,
       )
-      .join("") || "<p>まだ投票記録はありません。</p>";
+      .join("") || "<p>監査ログはまだありません。</p>";
+}
+
+function renderBoard() {
+  const filter = $("boardFilter").value.trim().toLowerCase();
+  const ballots = filter
+    ? boardCache.filter((ballot) => ballot.receipt_hash.toLowerCase().includes(filter))
+    : boardCache;
+  $("bulletinBoard").innerHTML =
+    ballots
+      .map(
+        (ballot) => `
+          <div class="record">
+            <strong>${escapeHtml(ballot.ballot_id)}</strong>
+            <span>${escapeHtml(ballot.receipt_hash)}</span>
+          </div>
+        `,
+      )
+      .join("") || "<p>該当する投票記録はありません。</p>";
+}
+
+async function refreshBoard() {
+  const board = await api(`/elections/${electionId}/bulletin-board`);
+  boardCache = board.ballots;
+  renderBoard();
 }
 
 async function tally() {
@@ -136,6 +173,8 @@ $("refreshButton").addEventListener("click", () => refreshBoard().catch((error) 
 $("tallyButton").addEventListener("click", () => tally().catch((error) => ($("tally").textContent = error.message)));
 $("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").textContent = error.message)));
 $("auditButton").addEventListener("click", () => verifyAudit().catch((error) => ($("auditResult").textContent = error.message)));
+$("auditLogButton").addEventListener("click", () => loadAuditLog().catch((error) => ($("auditLogTable").textContent = error.message)));
+$("boardFilter").addEventListener("input", renderBoard);
 
 loadElection().catch((error) => {
   $("authStatus").value = error.message;
