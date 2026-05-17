@@ -51,7 +51,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_sqlite_repository.py` （NEW、5件）
   - `test_openapi_privacy_lint.py` （Codex セッション4で追加、3件）
   - `test_loadtest_tool.py` （Codex セッション7で追加、2件）
-  - 計18件すべてパス
+  - `test_http_api.py` （Codex セッション8で追加、3件）
+  - 計21件すべてパス
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
@@ -140,6 +141,12 @@ Add manual smoke load test workflow
 Load test candidates from election metadata
 ```
 
+セッション 8 コミット候補:
+
+```text
+Add HTTP API routing tests
+```
+
 ## 実行方法
 
 ### API（メモリストレージ）
@@ -179,7 +186,7 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 期待値:
 
 ```text
-Ran 18 tests
+Ran 21 tests
 OK
 ```
 
