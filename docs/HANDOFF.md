@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Claude Code セッション 2 終了時)
+最終更新: 2026-05-17 (Codex セッション 3 作業中)
 
 ## 作業場所
 
@@ -46,6 +46,11 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_audit_and_receipts.py` （NEW、4件）
   - `test_sqlite_repository.py` （NEW、5件）
   - 計13件すべてパス
+- 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
+  - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
+  - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
+- 性能メモ: `docs/performance.md` （Codex セッション3で追加）
+  - メモリ/SQLiteストレージで `--voters 20 --concurrency 4 --verify-receipts` のスモーク負荷試験結果を記録
 
 ### 新エンドポイント
 
@@ -73,10 +78,16 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 1411684 1st commit
 ```
 
-セッション 2 のコミットはこれから作成する想定。コミットメッセージ案:
+セッション 2 コミット:
 
 ```text
-Add SQLite repository, receipt verification, audit-chain integrity
+e978180 Add SQLite repository, receipt verification, audit-chain integrity
+```
+
+セッション 3 コミット候補:
+
+```text
+Add full-flow API load test tool
 ```
 
 ## 実行方法
@@ -121,6 +132,24 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 Ran 13 tests
 OK
 ```
+
+## 負荷試験
+
+APIを起動した状態で、リポジトリルートから実行する。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\loadtest.py --base-url http://127.0.0.1:8787 --voters 100 --concurrency 10 --verify-receipts
+```
+
+出力はJSON形式。主な項目:
+
+- `success` / `failed`
+- `throughput_flows_per_second`
+- `latency_ms.min` / `median` / `p95` / `max`
+- `sample_errors`
+
+SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増える。単一ホストの上限把握には使えるが、本番想定の負荷試験はPostgreSQL実装後に再実施すること。
 
 ## 同期方法
 
@@ -188,7 +217,7 @@ Copy-Item -LiteralPath `
    - 候補者ごとの色分け
    - 監査ログのテーブル表示
 5. **OpenAPI Linter**: `mynumber` 等を禁止するカスタムルールを Spectral で追加し、CIに組み込む。
-6. **負荷試験**: `services/api` に対し、トークン発行→投票送信のフルフローを並列でぶつける負荷試験スクリプトを `tools/loadtest.py` として追加する。SQLiteは並行書き込みでロックが発生するので、上限を計測してドキュメント化。
+6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。
 
 ## 既知の制約

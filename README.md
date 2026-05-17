@@ -55,6 +55,17 @@ Set-Location services\api
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
 ```
 
+## 負荷試験
+
+APIサーバーを起動した状態で、別ターミナルからフルフローの簡易負荷試験を実行できます。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\loadtest.py --voters 100 --concurrency 10 --verify-receipts
+```
+
+標準出力に成功件数、失敗件数、スループット、レイテンシをJSONで出力します。SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増えます。
+
 ## 実装上の注意
 
 このプロトタイプは制度・暗号方式の実証用です。本番利用には、設計書の通り RFC 9474 準拠ブラインド署名、ElGamal/ristretto255、Chaum-Pedersen系ZKP、DKG、Shamir閾値復号、JPKI/選挙人名簿APIの実接続、WORM監査基盤が必要です。
