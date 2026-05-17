@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Claude Code セッション 3 終了時 / Codex セッション 13 引継ぎ後)
+最終更新: 2026-05-17 (Claude Code セッション 4 終了時)
 
 ## 作業場所
 
@@ -55,7 +55,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_http_api.py` （Codex セッション8で追加、5件）
   - `test_repository_protocol.py` （Codex セッション9で追加、2件）
   - `test_smoke_check_tool.py` （Codex セッション10で追加、1件）
-  - 計27件すべてパス
+  - `test_metrics_and_shutdown.py` （Claude Code セッション 4 で追加、4件）
+  - 計31件すべてパス
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -74,6 +75,19 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - Web静的配信は nginx:alpine ベース
   - `docker compose --profile memory up --build` または `--profile sqlite up --build` で起動
   - SQLiteプロファイルは名前付きボリューム `vote-data` を `/data` にマウント
+- Graceful shutdown: `app.py` の `install_graceful_shutdown()` （Claude Code セッション 4 で追加）
+  - SIGINT / SIGTERM / SIGBREAK を捕捉し、`server.shutdown()` を別スレッドから呼ぶ
+  - Windows では SIGTERM が無効だが try/except で握り潰すため移植可能
+- 運用メトリクスエンドポイント: `GET /metrics` （Claude Code セッション 4 で追加）
+  - 総選挙数、選挙別ballot数、監査ログエントリ数のみ返す
+  - 候補者別集計（counts）や個別票情報は含めず、監視スクレーパが安全に取得できる
+  - Webクライアントの「運用メトリクス」パネル、`tools/smoke_check.py` でも検査
+- PostgreSQLスキーマ: `services/api/internet_voting_system/sql/postgresql_schema.sql` （Claude Code セッション 4 で追加）
+  - `voting` スキーマ配下に elections / candidates / voter_status / ballot / audit_log を定義
+  - SQLite版とロジカルモデルを一致させてある（差分レビュー容易）
+  - 推奨ロール（jpki_gateway / blind_signer / ballot_box / tally）の最小権限GRANT文をコメントで提示
+- docker build CI: `.github/workflows/ci.yml` に `docker-build` ジョブ追加（Claude Code セッション 4）
+  - ubuntu-latest 上で API/Web イメージをビルドし、APIコンテナを起動して `tools/smoke_check.py` を回す
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -346,9 +360,12 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
    - 集計プレビューから受領証検証や公開掲示板への導線を追加
 5. **CI拡充**: 最小CIと手動スモーク負荷試験workflowは追加済み。次はGitHub Actionsの実行結果を見て、必要なら `loadtest.yml` の起動待ちやタイムアウトを調整する。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
-7. ~~**コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。~~ → Claude Code セッション 3 で実装済（`Dockerfile`, `Dockerfile.web`, `docker-compose.yml`）。次は GitHub Actions に `docker build` ジョブを追加し、`docker compose --profile sqlite up` 上でも `tools/smoke_check.py` が通ることを CI に組み込む。
-8. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（推奨作業 3 の続き）。
-9. **APIシャットダウン用エンドポイント or signal handler**: 負荷試験CIや docker compose で graceful shutdown ができるよう、`SIGTERM` ハンドラを `app.py` に追加する。
+7. ~~**コンテナ化**: 各バックエンドを Dockerfile 化。~~ → Claude Code セッション 3 で実装、セッション 4 で CI 化済。
+8. ~~**APIシャットダウン用 signal handler**~~ → Claude Code セッション 4 で実装済（`install_graceful_shutdown()`）。
+9. **PostgreSQLバックエンドの実装本体**: スキーマファイル `services/api/internet_voting_system/sql/postgresql_schema.sql` は用意済。`SqliteRepository` のメソッド構造をそのまま `psycopg` で書き直し、`BEGIN IMMEDIATE` を `SELECT ... FOR UPDATE` に置換するだけ。`app.py` の `--storage` 選択肢に `postgres` を追加し、`--dsn` フラグで接続文字列を渡せるようにする。
+10. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える。
+11. **メトリクスのPrometheus化**: 現在は `/metrics` がJSONを返す。Prometheus テキスト形式 (`text/plain; version=0.0.4`) も並行で返せるようにし、scrape 設定例を `docs/operations.md` （未作成）に書く。
+12. **Docker compose プロファイルでの smoke 検証**: GitHub Actions `docker-build` ジョブは API イメージ単独のスモークまで。`docker compose --profile sqlite up -d` でAPI+Web+ボリュームを起動し、Web 静的配信も含めて検証するジョブを追加する。
 
 ## 既知の制約
 

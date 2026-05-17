@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -80,6 +82,9 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
             if path == ["audit-log", "verify"]:
                 self._send_json(HTTPStatus.OK, self.service.verify_audit_chain())
                 return
+            if path == ["metrics"]:
+                self._send_json(HTTPStatus.OK, self.service.metrics_summary())
+                return
             self._send_error(HTTPStatus.NOT_FOUND, "not_found", "resource not found")
         except KeyError as exc:
             self._send_error(HTTPStatus.NOT_FOUND, "not_found", str(exc))
@@ -149,12 +154,38 @@ def main() -> None:
         repository = InMemoryRepository()
     VotingRequestHandler.service = VotingService(repository=repository)
     server = ThreadingHTTPServer((args.host, args.port), VotingRequestHandler)
+    install_graceful_shutdown(server)
     print(
         f"Internet Voting System API listening on http://{args.host}:{args.port} "
         f"(storage={args.storage})",
         flush=True,
     )
     server.serve_forever()
+
+
+def install_graceful_shutdown(server: ThreadingHTTPServer) -> None:
+    """Register SIGINT / SIGTERM handlers that shut the server down cleanly.
+
+    `serve_forever()` blocks the main thread, so `server.shutdown()` must be
+    invoked from another thread. We do so via a one-shot daemon thread.
+
+    On Windows, only SIGINT and SIGBREAK can be installed from Python; SIGTERM
+    is silently ignored by the OS. That is acceptable: the docker images run
+    on Linux, where SIGTERM is the standard `docker stop` signal, and our
+    handler correctly turns it into a clean shutdown there.
+    """
+    def _shutdown(signum: int, frame: object) -> None:  # type: ignore[unused-argument]
+        threading.Thread(target=server.shutdown, name="ivs-shutdown", daemon=True).start()
+
+    for sig_name in ("SIGINT", "SIGTERM", "SIGBREAK"):
+        sig = getattr(signal, sig_name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, _shutdown)
+        except (ValueError, OSError):
+            # Non-main thread or unsupported on this platform; skip silently.
+            continue
 
 
 if __name__ == "__main__":

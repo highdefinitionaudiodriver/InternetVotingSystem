@@ -115,6 +115,11 @@ def run_smoke_check(config: SmokeConfig) -> dict[str, Any]:
     if not audit.get("valid"):
         raise RuntimeError(f"audit chain verification failed: {audit}")
 
+    status, metrics = client.request("GET", "/metrics")
+    assert_success(status, metrics, "metrics")
+    if metrics.get("total_ballots_recorded", 0) < 1:
+        raise RuntimeError(f"metrics did not reflect the smoke ballot: {metrics}")
+
     return {
         "status": "ok",
         "election_id": config.election_id,
@@ -122,6 +127,7 @@ def run_smoke_check(config: SmokeConfig) -> dict[str, Any]:
         "ballot_id": ballot["ballot_id"],
         "receipt_hash": ballot["receipt_hash"],
         "audit_head_hash": audit["head_hash"],
+        "total_ballots_recorded": metrics["total_ballots_recorded"],
     }
 
 

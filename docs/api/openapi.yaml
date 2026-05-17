@@ -233,6 +233,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuditChainVerification"
 
+  /metrics:
+    get:
+      summary: Operational metrics safe to expose publicly
+      description: |
+        Returns aggregate counts only — no voter identity, no per-candidate
+        breakdown, no ballot identifiers. Safe for monitoring scrapers.
+      responses:
+        "200":
+          description: Metrics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsSummary"
+
 components:
   parameters:
     ElectionId:
@@ -468,3 +482,23 @@ components:
         total:     { type: integer, minimum: 0 }
         head_hash: { type: string }
         broken_at: { type: integer, minimum: 1 }
+
+    ElectionMetric:
+      type: object
+      required: [election_id, status, ballots_recorded]
+      properties:
+        election_id:      { type: string }
+        status:           { type: string, enum: [open, closed] }
+        ballots_recorded: { type: integer, minimum: 0 }
+
+    MetricsSummary:
+      type: object
+      required: [elections, total_elections, total_ballots_recorded, audit_log_entries]
+      properties:
+        elections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ElectionMetric"
+        total_elections:        { type: integer, minimum: 0 }
+        total_ballots_recorded: { type: integer, minimum: 0 }
+        audit_log_entries:      { type: integer, minimum: 0 }

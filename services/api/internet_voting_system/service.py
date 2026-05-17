@@ -119,3 +119,32 @@ class VotingService:
     def verify_audit_chain(self) -> dict[str, Any]:
         """Expose audit-log integrity verification (hash-chain replay)."""
         return self.repository.verify_audit_chain()
+
+    def metrics_summary(self) -> dict[str, Any]:
+        """Aggregate operational metrics that are safe to expose publicly.
+
+        The response intentionally contains only counts and per-election ballot
+        totals. It never includes voter_hash values, certificate serials,
+        ballot identifiers, candidate-level breakdowns, or audit-log payloads,
+        so it is safe to scrape from monitoring without leaking information
+        that could be cross-referenced with the bulletin board.
+        """
+        elections = self.repository.list_elections()
+        per_election = []
+        total_ballots = 0
+        for election in elections:
+            ballots = self.repository.public_ballots(election.election_id)
+            total_ballots += len(ballots)
+            per_election.append(
+                {
+                    "election_id": election.election_id,
+                    "status": election.status,
+                    "ballots_recorded": len(ballots),
+                }
+            )
+        return {
+            "elections": per_election,
+            "total_elections": len(elections),
+            "total_ballots_recorded": total_ballots,
+            "audit_log_entries": len(self.repository.audit_logs),
+        }

@@ -25,3 +25,45 @@ jobs:
 
       - name: Run all checks
         run: python tools/check_all.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: internet-voting-system-api:ci
+
+      - name: Build Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.web
+          push: false
+          load: true
+          tags: internet-voting-system-web:ci
+
+      - name: Smoke test API container
+        run: |
+          # Start the API container with in-memory storage, wait for /health,
+          # run the smoke check, then tear down.
+          docker run -d --rm --name ivs-ci -p 8787:8787 internet-voting-system-api:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null 2>&1; then
+              echo "API is healthy"
+              break
+            fi
+            sleep 1
+          done
+          python tools/smoke_check.py --base-url http://127.0.0.1:8787
+          docker stop ivs-ci

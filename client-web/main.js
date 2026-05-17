@@ -149,6 +149,11 @@ async function verifyAudit() {
   $("auditResult").textContent = JSON.stringify(result, null, 2);
 }
 
+async function loadMetrics() {
+  const result = await api(`/metrics`);
+  $("metricsResult").textContent = JSON.stringify(result, null, 2);
+}
+
 async function loadAuditLog() {
   const result = await api(`/audit-log`);
   const entries = result.audit_log.slice(-12).reverse();
@@ -233,6 +238,7 @@ $("tallyButton").addEventListener("click", () => tally().catch((error) => ($("ta
 $("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").innerHTML = `<div class="status danger">${escapeHtml(error.message)}</div>`)));
 $("auditButton").addEventListener("click", () => verifyAudit().catch((error) => ($("auditResult").textContent = error.message)));
 $("auditLogButton").addEventListener("click", () => loadAuditLog().catch((error) => ($("auditLogTable").textContent = error.message)));
+$("metricsButton").addEventListener("click", () => loadMetrics().catch((error) => ($("metricsResult").textContent = error.message)));
 $("boardFilter").addEventListener("input", renderBoard);
 
 loadElection().catch((error) => {
