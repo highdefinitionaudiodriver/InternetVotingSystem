@@ -108,11 +108,27 @@ async function vote() {
 async function verifyReceipt() {
   const hash = $("receiptInput").value.trim();
   if (!hash) {
-    $("receiptResult").textContent = "receipt_hash を入力してください";
+    $("receiptResult").innerHTML = '<div class="status warning">receipt_hash を入力してください</div>';
     return;
   }
   const result = await api(`/elections/${electionId}/receipts/${encodeURIComponent(hash)}`);
-  $("receiptResult").textContent = JSON.stringify(result, null, 2);
+  if (!result.found) {
+    $("receiptResult").innerHTML = `
+      <div class="status danger">
+        <strong>未掲載</strong>
+        <span>${escapeHtml(result.receipt_hash)}</span>
+      </div>
+    `;
+    return;
+  }
+  $("receiptResult").innerHTML = `
+    <div class="status ${result.integrity_ok ? "ok" : "danger"}">
+      <strong>${result.integrity_ok ? "掲載済み / 整合性OK" : "掲載済み / 整合性NG"}</strong>
+      <span>${escapeHtml(result.receipt_hash)}</span>
+      <small>ballot_id: ${escapeHtml(result.ballot.ballot_id)}</small>
+      <small>received_at_bucket: ${escapeHtml(result.ballot.received_at_bucket)}</small>
+    </div>
+  `;
 }
 
 async function verifyAudit() {
@@ -171,7 +187,7 @@ $("authButton").addEventListener("click", () => authenticate().catch((error) => 
 $("voteButton").addEventListener("click", () => vote().catch((error) => ($("voteStatus").value = error.message)));
 $("refreshButton").addEventListener("click", () => refreshBoard().catch((error) => ($("bulletinBoard").textContent = error.message)));
 $("tallyButton").addEventListener("click", () => tally().catch((error) => ($("tally").textContent = error.message)));
-$("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").textContent = error.message)));
+$("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").innerHTML = `<div class="status danger">${escapeHtml(error.message)}</div>`)));
 $("auditButton").addEventListener("click", () => verifyAudit().catch((error) => ($("auditResult").textContent = error.message)));
 $("auditLogButton").addEventListener("click", () => loadAuditLog().catch((error) => ($("auditLogTable").textContent = error.message)));
 $("boardFilter").addEventListener("input", renderBoard);

@@ -224,6 +224,47 @@ pre {
   word-break: break-all;
 }
 
+#receiptResult {
+  min-height: 120px;
+  background: #f8faf6;
+  color: #1b2430;
+}
+
+.status {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #cfd9ca;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.status strong {
+  font-size: 14px;
+}
+
+.status span,
+.status small {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.status.ok {
+  border-color: #86b57c;
+  background: #eef7ea;
+}
+
+.status.warning {
+  border-color: #c9a84f;
+  background: #fff8df;
+}
+
+.status.danger {
+  border-color: #ca7a7a;
+  background: #fff0f0;
+}
+
 .hint {
   margin: 0;
   color: #4a5563;
