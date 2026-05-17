@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+#
+# Static web client container. Serves the demo PWA over nginx.
+#
+# Build:
+#   docker build -t internet-voting-system-web -f Dockerfile.web .
+# Run:
+#   docker run --rm -p 8788:80 internet-voting-system-web
+
+FROM nginx:alpine
+COPY client-web/ /usr/share/nginx/html/
+# The default nginx config serves /usr/share/nginx/html on port 80, which is
+# exactly what we want for the static client. No custom config required.
+EXPOSE 80

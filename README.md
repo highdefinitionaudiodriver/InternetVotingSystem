@@ -34,6 +34,26 @@ Set-Location services\api
 クライアントは `client-web/index.html` をブラウザで開き、API URLに `http://127.0.0.1:8787` を指定します。
 受領証検証パネルと監査ログ整合性チェックパネルが追加されています。
 
+## Docker での起動
+
+リポジトリルートに `Dockerfile`、`Dockerfile.web`、`docker-compose.yml` を用意してあります。
+標準ライブラリのみで動くため、`pip install` も不要です。
+
+メモリストレージ（揮発）:
+
+```powershell
+docker compose --profile memory up --build
+```
+
+SQLiteストレージ（名前付きボリュームに永続化）:
+
+```powershell
+docker compose --profile sqlite up --build
+```
+
+いずれもAPIが `http://localhost:8787`、Webクライアントが `http://localhost:8788` で立ち上がります。
+ボリューム `vote-data` を削除しない限り、SQLiteプロファイルでは投票記録と監査ログがコンテナ再作成後も保持されます。
+
 ## 主なエンドポイント
 
 - `POST /elections/{id}/authenticate` - JPKI証明書による本人確認

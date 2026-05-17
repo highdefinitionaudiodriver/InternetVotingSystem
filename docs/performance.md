@@ -80,3 +80,52 @@ API起動条件:
 ```
 
 SQLiteストレージは単一ホスト永続化の確認用であり、書き込みは直列化される。今回の小規模測定でもメモリストレージよりスループットが大きく低下した。本番相当の並行負荷試験はPostgreSQLバックエンド実装後に再計測する。
+
+## 2026-05-17 メモリストレージ スケール拡張
+
+開発PC上での上限把握のため、`voters` と `concurrency` を引き上げた結果。
+
+### 200 voters / concurrency 20 (`--verify-receipts`)
+
+API起動:
+
+```powershell
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8790 --storage memory
+```
+
+実行:
+
+```powershell
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\loadtest.py --base-url http://127.0.0.1:8790 --voters 200 --concurrency 20 --verify-receipts
+```
+
+結果:
+
+```json
+{
+  "success": 200,
+  "failed": 0,
+  "elapsed_seconds": 1.754,
+  "throughput_flows_per_second": 114.03,
+  "latency_ms": { "min": 13.30, "median": 31.41, "p95": 718.58, "max": 1539.69 }
+}
+```
+
+### 500 voters / concurrency 50 (`--verify-receipts`)
+
+```json
+{
+  "success": 500,
+  "failed": 0,
+  "elapsed_seconds": 4.647,
+  "throughput_flows_per_second": 107.60,
+  "latency_ms": { "min": 17.18, "median": 42.32, "p95": 2098.44, "max": 4131.88 }
+}
+```
+
+### 観察
+
+- スループットは並行度を上げても 100〜120 flows/sec で頭打ちになる。標準ライブラリ `ThreadingHTTPServer` の GIL ボトルネックが支配的とみられる。
+- 並行度が上がるにつれ p95/max が急増し、200 voters → 500 voters で max が約 1.5s → 4.1s に拡大した。これは TCP/HTTP の処理キューが満ちて並列ワーカーが待たされている兆候。
+- 失敗はゼロのまま。標準ライブラリ HTTP + メモリストレージでも、整合性は保たれている。
+- 本番想定の数値は、FastAPI + uvicorn + PostgreSQL に置き換えた後に再計測すること。本ファイルの数値はあくまでもプロトタイプの傾向把握用とする。

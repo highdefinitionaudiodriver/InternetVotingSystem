@@ -1,0 +1,54 @@
+# Minimal docker-compose for the prototype.
+#
+# Two profiles are provided so the same compose file covers both demo and
+# durable runs:
+#   - `memory`  : volatile in-process storage. No volume mounted. Fast feedback.
+#   - `sqlite`  : persistent single-host storage on a named volume.
+#
+# Usage:
+#   docker compose --profile memory up --build
+#   docker compose --profile sqlite up --build
+#
+# Web client is always exposed on http://localhost:8788. The default API URL
+# in the client points at http://127.0.0.1:8787 which matches the host port
+# mapping below.
+
+services:
+  api-memory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: internet-voting-system-api
+    container_name: ivs-api-memory
+    ports:
+      - "8787:8787"
+    command: ["--storage", "memory"]
+    profiles: ["memory"]
+
+  api-sqlite:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: internet-voting-system-api
+    container_name: ivs-api-sqlite
+    ports:
+      - "8787:8787"
+    volumes:
+      - vote-data:/data
+    command: ["--storage", "sqlite", "--sqlite-path", "/data/voting.sqlite3"]
+    profiles: ["sqlite"]
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: internet-voting-system-web
+    container_name: ivs-web
+    ports:
+      - "8788:80"
+    # The web client is profile-independent; bring it up under any profile so
+    # the user always has the demo UI available.
+    profiles: ["memory", "sqlite"]
+
+volumes:
+  vote-data:

@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Codex セッション 13 作業中)
+最終更新: 2026-05-17 (Claude Code セッション 3 終了時 / Codex セッション 13 引継ぎ後)
 
 ## 作業場所
 
@@ -68,6 +68,12 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 候補者IDを `GET /elections/{id}` から取得するよう変更（Codex セッション7）
 - 性能メモ: `docs/performance.md` （Codex セッション3で追加）
   - メモリ/SQLiteストレージで `--voters 20 --concurrency 4 --verify-receipts` のスモーク負荷試験結果を記録
+  - Claude Code セッション 3 で 200/500 voters のスケール拡張結果を追記。スループットは 100〜120 flows/sec で頭打ち、p95/maxは並行度増加で急増（GIL+標準ライブラリHTTPサーバー起因と推測）
+- コンテナ化: `Dockerfile`, `Dockerfile.web`, `docker-compose.yml` （Claude Code セッション 3 で追加）
+  - APIコンテナは Python 3.12-slim ベース、非rootユーザー実行、依存ゼロ
+  - Web静的配信は nginx:alpine ベース
+  - `docker compose --profile memory up --build` または `--profile sqlite up --build` で起動
+  - SQLiteプロファイルは名前付きボリューム `vote-data` を `/data` にマウント
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -340,7 +346,9 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
    - 集計プレビューから受領証検証や公開掲示板への導線を追加
 5. **CI拡充**: 最小CIと手動スモーク負荷試験workflowは追加済み。次はGitHub Actionsの実行結果を見て、必要なら `loadtest.yml` の起動待ちやタイムアウトを調整する。
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
-7. **コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。
+7. ~~**コンテナ化**: 各バックエンドを Dockerfile 化。`docker-compose.yml` で `api + nginx + sqlite volume` の最小構成を提供。~~ → Claude Code セッション 3 で実装済（`Dockerfile`, `Dockerfile.web`, `docker-compose.yml`）。次は GitHub Actions に `docker build` ジョブを追加し、`docker compose --profile sqlite up` 上でも `tools/smoke_check.py` が通ることを CI に組み込む。
+8. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（推奨作業 3 の続き）。
+9. **APIシャットダウン用エンドポイント or signal handler**: 負荷試験CIや docker compose で graceful shutdown ができるよう、`SIGTERM` ハンドラを `app.py` に追加する。
 
 ## 既知の制約
 
