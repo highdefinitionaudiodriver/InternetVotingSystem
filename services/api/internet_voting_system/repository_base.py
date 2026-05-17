@@ -9,7 +9,7 @@ without touching service-layer code.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from .models import AuditLogEntry, Ballot, Election, VoterStatus
 
@@ -24,6 +24,7 @@ def bucket_5_minutes(dt: datetime) -> datetime:
     return dt.replace(minute=dt.minute - (dt.minute % 5), second=0, microsecond=0)
 
 
+@runtime_checkable
 class Repository(Protocol):
     """Storage operations required by VotingService.
 

@@ -34,6 +34,7 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - ドメインサービス: `services/api/internet_voting_system/service.py`
 - デモ暗号境界: `services/api/internet_voting_system/crypto.py`
 - Repositoryプロトコル: `services/api/internet_voting_system/repository_base.py` （NEW）
+  - `@runtime_checkable` 化し、`VotingService` の型注釈も `Repository` へ変更（Codex セッション9）
 - インメモリRepository: `services/api/internet_voting_system/repository.py`
 - SQLite Repository: `services/api/internet_voting_system/sqlite_repository.py` （NEW）
 - Webクライアント: `client-web/`
@@ -52,7 +53,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_openapi_privacy_lint.py` （Codex セッション4で追加、3件）
   - `test_loadtest_tool.py` （Codex セッション7で追加、2件）
   - `test_http_api.py` （Codex セッション8で追加、5件）
-  - 計24件すべてパス
+  - `test_repository_protocol.py` （Codex セッション9で追加、2件）
+  - 計26件すべてパス
 - 負荷試験: `tools/loadtest.py` （Codex セッション3で追加）
   - 標準ライブラリのみで `authenticate -> issue-token -> prepare-vote -> ballots` のフルフローを並列実行
   - `--verify-receipts` 指定時は受領証検証エンドポイントまで確認
@@ -188,7 +190,7 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\services\api
 期待値:
 
 ```text
-Ran 24 tests
+Ran 26 tests
 OK
 ```
 

@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import uuid
 import re
+import uuid
 from typing import Any
 
 from .crypto import DemoCryptoSuite
 from .repository import InMemoryRepository
+from .repository_base import Repository
 
 RECEIPT_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 class VotingService:
-    def __init__(self, repository: InMemoryRepository | None = None, crypto: DemoCryptoSuite | None = None) -> None:
+    def __init__(self, repository: Repository | None = None, crypto: DemoCryptoSuite | None = None) -> None:
         self.repository = repository or InMemoryRepository()
         self.crypto = crypto or DemoCryptoSuite.with_ephemeral_keys()
 
