@@ -105,6 +105,40 @@ jobs:
           IVS_TEST_PG_DSN: "postgresql://voting:voting@127.0.0.1:5432/voting"
         run: python -m unittest tests.test_postgres_integration -v
 
+  helm-chart-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: helm lint (memory profile)
+        run: helm lint deploy/helm/internet-voting-system
+
+      - name: helm template (memory profile)
+        run: helm template ivs deploy/helm/internet-voting-system --set storage.backend=memory > /tmp/ivs-memory.yaml
+
+      - name: helm template (sqlite profile)
+        run: helm template ivs deploy/helm/internet-voting-system --set storage.backend=sqlite > /tmp/ivs-sqlite.yaml
+
+      - name: helm template (postgres profile)
+        run: |
+          helm template ivs deploy/helm/internet-voting-system \
+            --set storage.backend=postgres \
+            --set storage.postgres.dsn=postgresql://voting:voting@pg.svc.cluster.local:5432/voting \
+            > /tmp/ivs-postgres.yaml
+
+      - name: Validate rendered manifests with kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /tmp kubeconform
+          /tmp/kubeconform -strict -summary -schema-location default \
+            /tmp/ivs-memory.yaml /tmp/ivs-sqlite.yaml /tmp/ivs-postgres.yaml
+
   compose-smoke:
     runs-on: ubuntu-latest
     needs: docker-build

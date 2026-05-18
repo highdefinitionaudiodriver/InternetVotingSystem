@@ -139,9 +139,20 @@ class VotingService:
             "ballot": ballot.public_record(),
         }
 
-    def verify_audit_chain(self) -> dict[str, Any]:
-        """Expose audit-log integrity verification (hash-chain replay)."""
-        return self.repository.verify_audit_chain()
+    def verify_audit_chain(
+        self,
+        from_log_id: int = 0,
+        expected_prev_hash: str | None = None,
+    ) -> dict[str, Any]:
+        """Expose audit-log integrity verification (hash-chain replay).
+
+        Pass ``from_log_id`` and ``expected_prev_hash`` to validate only the
+        tail of the chain past a previously-verified checkpoint.
+        """
+        return self.repository.verify_audit_chain(
+            from_log_id=from_log_id,
+            expected_prev_hash=expected_prev_hash,
+        )
 
     def metrics_prometheus(self) -> str:
         """Same data as ``metrics_summary`` rendered in Prometheus text exposition format.

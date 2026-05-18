@@ -269,7 +269,28 @@ paths:
 
   /audit-log/verify:
     get:
-      summary: Re-verify the audit-log hash chain end-to-end
+      summary: Re-verify the audit-log hash chain end-to-end (or from a checkpoint)
+      description: |
+        With no parameters, replays the entire chain from log_id=1.
+
+        For chains with millions of entries, pass `from` (the last verified
+        `log_id`) and `prev_hash` (the matching `head_hash` from a previous
+        run) to skip the already-verified prefix. Both parameters must be
+        supplied together — supplying only `from` returns valid=false.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: prev_hash
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Required when `from` > 0; the prior verified `head_hash`.
       responses:
         "200":
           description: Verification result
@@ -563,10 +584,12 @@ components:
       type: object
       required: [valid, total]
       properties:
-        valid:     { type: boolean }
-        total:     { type: integer, minimum: 0 }
-        head_hash: { type: string }
-        broken_at: { type: integer, minimum: 1 }
+        valid:         { type: boolean }
+        total:         { type: integer, minimum: 0 }
+        verified_from: { type: integer, minimum: 0, description: "0 = replayed from genesis." }
+        head_hash:     { type: string }
+        broken_at:     { type: integer, minimum: 0 }
+        reason:        { type: string, description: "Only present when valid=false due to a parameter validation issue." }
 
     ElectionMetric:
       type: object

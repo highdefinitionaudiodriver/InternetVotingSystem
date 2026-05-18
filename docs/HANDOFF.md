@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Codex セッション 16 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 8 終了時)
 
 ## 作業場所
 
@@ -63,7 +63,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_helm_chart_lint.py` （Codex セッション14で追加、3件）
   - `test_lifecycle_ratelimit_pagination.py` に環境変数rate limit設定テスト3件を追加（Codex セッション15）
   - `test_infrastructure_docs_lint.py` （Codex セッション16で追加、3件）
-  - 計60件（DSN未設定では postgres 4件スキップ、残り56件すべてパス）
+  - `test_audit_checkpoints_and_redis.py` （Claude Code セッション 8 で追加、11件）
+  - 計71件（DSN未設定では postgres 4件スキップ、残り67件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -152,6 +153,18 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `aws-waf-cloudfront/` にAWS WAFv2 + CloudFront向けTerraformサンプルを追加
   - IP reputation / anonymous IP / common / known bad inputs / API path rate limit を定義
   - WAFログのsampled requestを無効にし、票本文・候補者別集計・受領証などをエッジログへ積極的に出さない方針をREADMEに明記
+- RateLimiterプロトコル化 + Redis分散実装: `services/api/internet_voting_system/rate_limit.py` （Claude Code セッション 8）
+  - `RateLimiterProtocol` を新設、既存 `RateLimiter` を in-memory 実装として温存（後方互換）
+  - `RedisRateLimiter`: 単一の Lua スクリプトで HMGET → 補充 → 判定 → HMSET → EXPIRE を atomic に実行
+  - `redis` パッケージは遅延 import、未インストールでも build_rate_limiter_from_env 経路を踏むまでエラー出ない
+  - `build_rate_limiter_from_env` を拡張: `IVS_RATE_LIMIT_BACKEND=memory|redis`、`IVS_RATE_LIMIT_REDIS_URL` を解釈
+- 監査チェーン検証チェックポイント対応: `verify_audit_chain(from_log_id, expected_prev_hash)` （Claude Code セッション 8）
+  - `repository_base._verify_chain` 共通ヘルパに集約、3バックエンドで挙動が完全に一致
+  - `GET /audit-log/verify?from=<log_id>&prev_hash=<head_hash>` で前回確認した chunk から再開可能
+  - 既存の引数なし呼び出しはこれまで通り、レスポンスに `verified_from` フィールドを追加
+- helm-chart-testing CIジョブ: `.github/workflows/ci.yml` `helm-chart-testing` ジョブ（Claude Code セッション 8）
+  - 本物の `helm lint` + `helm template` を memory/sqlite/postgres 3プロファイルで実行
+  - `kubeconform -strict` でレンダ済みマニフェストを Kubernetes スキーマ検証
 - Infrastructure docs lint: `tools/lint_infrastructure_docs.py` （Codex セッション16で追加）
   - WAFサンプルの必須ファイル、主要AWS管理ルール、IPベースrate limit、`sampled_requests_enabled = false` を検査
   - `tools/check_all.py` とCIの通常チェック経由で実行される
@@ -442,9 +455,11 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 15. **クライアント側 JPKI 実接続**: Web版は公的個人認証JPKIブラウザ拡張、モバイル版はNFC SDK を組み込み、`certificate_serial` 直接入力フォームを置き換える。
 16. **負荷試験のPostgres版**: `tools/loadtest.py` を `--storage postgres` で起動した API に対して実行し、結果を `docs/performance.md` に追記。FOR UPDATE による直列化の影響を測定。
 17. ~~**WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。~~ → Codex セッション16でAWS WAF + CloudFrontのTerraformサンプルと静的lintを追加済み。CloudFront Distribution本体やWAFログ配送は未実装。
-18. **Helmチャートの helm lint / helm template CI**: Codex セッション14で標準ライブラリの静的lintは追加済み。次は `deploy/helm/internet-voting-system/` を `helm/chart-testing-action` で実レンダリング検証するCIジョブを追加。
+18. ~~**Helmチャートの helm lint / helm template CI**~~ → Claude Code セッション 8 で `helm-chart-testing` ジョブ追加（helm + kubeconform）。
 19. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（積み残し最重要）。
-20. **レート制限の分散化**: 現状は in-process token bucket なので APIインスタンス間で共有されない。Redisバックエンド `RedisRateLimiter` を追加し、`RateLimiter` プロトコルでスイッチ可能にする。
+20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Lua スクリプト + 環境変数経由切替 + fake-client テストまで対応。実 Redis 相手の統合テストCIは未実装、`docker-compose.test.yml` で `redis:alpine` を立てるジョブを次に追加すると良い。
+21. **監査チェーンチェックポイントの永続化**: Claude Code セッション 8 で API は対応済。`audit_log` テーブルに `checkpoint` 列を加え、N件ごとに checkpoint hash を残すと、再起動後も最後のチェックポイントから検証できる。
+22. **CloudFront Distribution 本体 + WAFログ配送**: Codex セッション16のWAFサンプルは ACL/ルール定義のみ。CloudFront distribution と Kinesis Firehose 経由のログ配送を Terraform で例示する。
 
 ## 既知の制約
 

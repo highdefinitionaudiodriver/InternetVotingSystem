@@ -32,7 +32,7 @@ from typing import Any
 
 from .crypto import canonical_json, sha256_hex
 from .models import AuditLogEntry, Ballot, Candidate, Election, VoterStatus, utc_now
-from .repository_base import bucket_5_minutes
+from .repository_base import _verify_chain, bucket_5_minutes
 
 
 def _to_iso(dt: datetime) -> str:
@@ -460,22 +460,14 @@ class PostgresRepository:
             occurred_at=occurred_at,
         )
 
-    def verify_audit_chain(self) -> dict[str, Any]:
+    def verify_audit_chain(
+        self,
+        from_log_id: int = 0,
+        expected_prev_hash: str | None = None,
+    ) -> dict[str, Any]:
         with self._lock:
-            prev = "0" * 64
-            entries = self.audit_logs
-            for entry in entries:
-                material = canonical_json(
-                    {
-                        "component": entry.component,
-                        "event_type": entry.event_type,
-                        "occurred_at": entry.occurred_at.isoformat(),
-                        "payload": entry.payload,
-                        "prev_hash": prev,
-                    }
-                )
-                expected = sha256_hex(material)
-                if entry.prev_hash != prev or entry.log_hash != expected:
-                    return {"valid": False, "broken_at": entry.log_id, "total": len(entries)}
-                prev = entry.log_hash
-            return {"valid": True, "total": len(entries), "head_hash": prev}
+            return _verify_chain(
+                self.audit_logs,
+                from_log_id=from_log_id,
+                expected_prev_hash=expected_prev_hash,
+            )

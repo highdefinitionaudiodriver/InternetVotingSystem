@@ -8,7 +8,7 @@ from typing import Any
 
 from .crypto import canonical_json, sha256_hex
 from .models import AuditLogEntry, Ballot, Candidate, Election, VoterStatus, utc_now
-from .repository_base import bucket_5_minutes  # re-exported for backward compatibility
+from .repository_base import _verify_chain, bucket_5_minutes  # re-exported for backward compatibility
 
 
 def parse_datetime(value: str) -> datetime:
@@ -208,25 +208,26 @@ class InMemoryRepository:
         self.audit_logs.append(entry)
         return entry
 
-    def verify_audit_chain(self) -> dict[str, Any]:
-        """Re-verify the hash chain end-to-end.
+    def verify_audit_chain(
+        self,
+        from_log_id: int = 0,
+        expected_prev_hash: str | None = None,
+    ) -> dict[str, Any]:
+        """Re-verify the hash chain.
 
-        Returns a summary including any broken link (None if intact).
+        When called with no arguments, replays the entire chain from log_id=1
+        starting with the genesis prev_hash of 64 zeros.
+
+        When ``from_log_id`` is non-zero, the caller is supplying a previously
+        validated checkpoint: ``expected_prev_hash`` must be the ``log_hash``
+        of entry ``from_log_id``. Verification then starts at ``from_log_id+1``
+        with ``expected_prev_hash`` as the seed ``prev``. This makes audit
+        verification O(N) in the *unchecked* tail rather than the full chain,
+        which matters once the chain reaches millions of entries.
         """
         with self._lock:
-            prev = "0" * 64
-            for entry in self.audit_logs:
-                material = canonical_json(
-                    {
-                        "component": entry.component,
-                        "event_type": entry.event_type,
-                        "occurred_at": entry.occurred_at.isoformat(),
-                        "payload": entry.payload,
-                        "prev_hash": prev,
-                    }
-                )
-                expected = sha256_hex(material)
-                if entry.prev_hash != prev or entry.log_hash != expected:
-                    return {"valid": False, "broken_at": entry.log_id, "total": len(self.audit_logs)}
-                prev = entry.log_hash
-            return {"valid": True, "total": len(self.audit_logs), "head_hash": prev}
+            return _verify_chain(
+                self.audit_logs,
+                from_log_id=from_log_id,
+                expected_prev_hash=expected_prev_hash,
+            )

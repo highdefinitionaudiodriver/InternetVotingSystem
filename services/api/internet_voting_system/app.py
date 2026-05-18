@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlparse
 
-from .rate_limit import RateLimiter
+from .rate_limit import RateLimiter, RateLimiterProtocol, RedisRateLimiter
 from .repository import InMemoryRepository
 from .service import VotingService
 from .sqlite_repository import SqliteRepository
@@ -34,7 +34,7 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
     # Shared limiter; replaced in main() if the operator wants different
     # capacities. Setting this to None disables rate limiting entirely
     # (handy for tests that intentionally hammer the API).
-    rate_limiter: RateLimiter | None = RateLimiter()
+    rate_limiter: RateLimiterProtocol | None = RateLimiter()
 
     def log_message(self, format: str, *args: Any) -> None:
         return
@@ -159,7 +159,20 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
                 )
                 return
             if path == ["audit-log", "verify"]:
-                self._send_json(HTTPStatus.OK, self.service.verify_audit_chain())
+                # Optional checkpoint: ?from=<log_id>&prev_hash=<head_hash>.
+                # If only ?from is given, expected_prev_hash defaults to None,
+                # which the service rejects with valid=false + reason. The
+                # client must supply both together (matching the prior
+                # `head_hash` returned by a previous /audit-log/verify call).
+                from_log_id = int(query.get("from", ["0"])[0])
+                expected_prev = query.get("prev_hash", [None])[0]
+                self._send_json(
+                    HTTPStatus.OK,
+                    self.service.verify_audit_chain(
+                        from_log_id=from_log_id,
+                        expected_prev_hash=expected_prev,
+                    ),
+                )
                 return
             if path == ["metrics"]:
                 if self._wants_prometheus(parsed_url):
@@ -270,8 +283,16 @@ def main() -> None:
     server.serve_forever()
 
 
-def build_rate_limiter_from_env(environ: Mapping[str, str] | None = None) -> RateLimiter | None:
-    """Build the process-wide limiter from IVS_RATE_LIMIT_* environment vars."""
+def build_rate_limiter_from_env(environ: Mapping[str, str] | None = None) -> RateLimiterProtocol | None:
+    """Build the process-wide limiter from IVS_RATE_LIMIT_* environment vars.
+
+    Recognised variables (all optional):
+      - ``IVS_RATE_LIMIT_ENABLED`` (default ``true``)
+      - ``IVS_RATE_LIMIT_BACKEND`` (``memory`` or ``redis``, default ``memory``)
+      - ``IVS_RATE_LIMIT_REDIS_URL`` (required when backend=redis)
+      - ``IVS_RATE_LIMIT_WRITE_CAPACITY`` / ``..._READ_CAPACITY``
+      - ``IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC`` / ``..._READ_REFILL_PER_SEC``
+    """
     source = os.environ if environ is None else environ
     enabled = source.get("IVS_RATE_LIMIT_ENABLED", "true").strip().lower()
     if enabled in {"0", "false", "no", "off"}:
@@ -291,7 +312,16 @@ def build_rate_limiter_from_env(environ: Mapping[str, str] | None = None) -> Rat
         if value < 0:
             raise ValueError(f"{env_name} must be zero or greater")
         kwargs[arg_name] = value
-    return RateLimiter(**kwargs)
+
+    backend = source.get("IVS_RATE_LIMIT_BACKEND", "memory").strip().lower()
+    if backend == "memory":
+        return RateLimiter(**kwargs)
+    if backend == "redis":
+        url = source.get("IVS_RATE_LIMIT_REDIS_URL", "").strip()
+        if not url:
+            raise ValueError("IVS_RATE_LIMIT_REDIS_URL is required when IVS_RATE_LIMIT_BACKEND=redis")
+        return RedisRateLimiter(url=url, **kwargs)
+    raise ValueError(f"IVS_RATE_LIMIT_BACKEND must be 'memory' or 'redis', got {backend!r}")
 
 
 def install_graceful_shutdown(server: ThreadingHTTPServer) -> None:
