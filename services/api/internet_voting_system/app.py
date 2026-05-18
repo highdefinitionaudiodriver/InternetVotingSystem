@@ -158,6 +158,14 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
                     },
                 )
                 return
+            if path == ["audit-log", "checkpoints"]:
+                interval = int(query.get("interval", ["1000"])[0])
+                limit = int(query.get("limit", ["10"])[0])
+                self._send_json(
+                    HTTPStatus.OK,
+                    self.service.audit_checkpoints(interval=interval, limit=limit),
+                )
+                return
             if path == ["audit-log", "verify"]:
                 # Optional checkpoint: ?from=<log_id>&prev_hash=<head_hash>.
                 # If only ?from is given, expected_prev_hash defaults to None,

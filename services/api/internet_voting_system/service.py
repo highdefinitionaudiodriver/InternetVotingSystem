@@ -186,6 +186,46 @@ class VotingService:
         # Prometheus expositions end with a trailing newline.
         return "\n".join(lines) + "\n"
 
+    def audit_checkpoints(self, interval: int = 1000, limit: int = 10) -> dict[str, Any]:
+        """Return audit-log checkpoints clients can use to resume verification.
+
+        For chains with millions of entries, a full ``/audit-log/verify``
+        replay is expensive. Operators publish checkpoints — pairs of
+        ``(log_id, log_hash)`` taken every ``interval`` entries — so that
+        clients can pick the most recent verified checkpoint and call
+        ``/audit-log/verify?from=<log_id>&prev_hash=<log_hash>`` to validate
+        only the tail.
+
+        ``interval`` must be >= 1; ``limit`` caps the number of returned
+        checkpoints (newest first) so the response stays bounded.
+
+        The endpoint never returns voter identity or vote contents — only
+        ``log_id`` (an integer monotonic counter) and ``log_hash``
+        (the SHA-256 head hash at that point in the chain).
+        """
+        if interval < 1:
+            raise ValueError("interval must be >= 1")
+        if limit < 1 or limit > 100:
+            raise ValueError("limit must be between 1 and 100")
+        entries = self.repository.audit_logs
+        # Pick every Nth entry (log_id divisible by interval) plus the very
+        # last entry so the latest checkpoint is always available.
+        checkpoints = [
+            {"log_id": e.log_id, "log_hash": e.log_hash}
+            for e in entries
+            if e.log_id % interval == 0
+        ]
+        if entries and (not checkpoints or checkpoints[-1]["log_id"] != entries[-1].log_id):
+            tail = entries[-1]
+            checkpoints.append({"log_id": tail.log_id, "log_hash": tail.log_hash})
+        # Newest first, capped at limit.
+        checkpoints = list(reversed(checkpoints))[:limit]
+        return {
+            "interval": interval,
+            "total_entries": len(entries),
+            "checkpoints": checkpoints,
+        }
+
     def metrics_summary(self) -> dict[str, Any]:
         """Aggregate operational metrics that are safe to expose publicly.
 

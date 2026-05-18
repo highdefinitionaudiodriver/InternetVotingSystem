@@ -14,6 +14,7 @@ REQUIRED_FILES = (
     AWS_WAF_DIR / "main.tf",
     AWS_WAF_DIR / "variables.tf",
     AWS_WAF_DIR / "outputs.tf",
+    AWS_WAF_DIR / "cloudfront.tf",
 )
 
 REQUIRED_SNIPPETS = {
@@ -37,6 +38,19 @@ REQUIRED_SNIPPETS = {
     INFRA_DIR / "README.md": (
         "票本文",
         "WAF/CDN",
+    ),
+    AWS_WAF_DIR / "cloudfront.tf": (
+        # CloudFront / log-delivery stack must remain opt-in via a variable.
+        'variable "create_distribution"',
+        # Cache disabled by default so audit log + rate limiter still see hits.
+        "max_ttl     = 0",
+        # WAF -> Firehose -> S3 wiring with WORM retention.
+        "aws_kinesis_firehose_delivery_stream",
+        'object_lock_enabled = true',
+        '"COMPLIANCE"',
+        # Sensitive headers redacted from the WAF log stream.
+        'name = "authorization"',
+        'name = "certificate_serial"',
     ),
 }
 

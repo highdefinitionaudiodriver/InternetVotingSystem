@@ -267,6 +267,42 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /audit-log/checkpoints:
+    get:
+      summary: List audit-log checkpoints suitable for partial verification
+      description: |
+        Returns `(log_id, log_hash)` pairs sampled every `interval` entries
+        (newest first, capped at `limit`). Clients use the most recent
+        checkpoint as input to `/audit-log/verify?from=&prev_hash=` so that
+        only the tail of the chain is replayed.
+
+        The response never returns voter identity or vote contents.
+      parameters:
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1000
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: Checkpoint list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditCheckpoints"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /audit-log/verify:
     get:
       summary: Re-verify the audit-log hash chain end-to-end (or from a checkpoint)
@@ -579,6 +615,24 @@ components:
           description: Pass this back as the `after` query param to fetch the next page.
         has_more:
           type: boolean
+
+    AuditCheckpoint:
+      type: object
+      required: [log_id, log_hash]
+      properties:
+        log_id:   { type: integer, minimum: 1 }
+        log_hash: { type: string, description: "SHA-256 hex digest." }
+
+    AuditCheckpoints:
+      type: object
+      required: [interval, total_entries, checkpoints]
+      properties:
+        interval:      { type: integer, minimum: 1 }
+        total_entries: { type: integer, minimum: 0 }
+        checkpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditCheckpoint"
 
     AuditChainVerification:
       type: object

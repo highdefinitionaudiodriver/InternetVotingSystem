@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Codex セッション 17 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 9 終了時)
 
 ## 作業場所
 
@@ -65,7 +65,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_infrastructure_docs_lint.py` （Codex セッション16で追加、3件）
   - `test_audit_checkpoints_and_redis.py` （Claude Code セッション 8 で追加、11件）
   - `test_redis_integration.py` （Codex セッション17で追加、2件。`IVS_TEST_REDIS_URL` 設定時のみ実行）
-  - 計73件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り67件すべてパス）
+  - `test_audit_checkpoints_endpoint.py` （Claude Code セッション 9 で追加、7件）
+  - 計80件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り74件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -166,6 +167,17 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `repository_base._verify_chain` 共通ヘルパに集約、3バックエンドで挙動が完全に一致
   - `GET /audit-log/verify?from=<log_id>&prev_hash=<head_hash>` で前回確認した chunk から再開可能
   - 既存の引数なし呼び出しはこれまで通り、レスポンスに `verified_from` フィールドを追加
+- 監査チェックポイントAPI: `GET /audit-log/checkpoints?interval=<n>&limit=<m>` （Claude Code セッション 9 で追加）
+  - N件毎の `(log_id, log_hash)` を newest-first で返却。tail エントリは常に含める
+  - クライアントは最新チェックポイントを `/audit-log/verify?from=&prev_hash=` に渡して差分検証
+  - `interval >= 1`、`1 <= limit <= 100` を検証、それ以外は `400 bad_request`
+  - 候補別票数や voter_hash は応答に含まれないことを `test_checkpoint_does_not_leak_identity` が保証
+- WAF/CDN拡張: `docs/infrastructure/aws-waf-cloudfront/cloudfront.tf` （Claude Code セッション 9 で追加）
+  - `var.create_distribution = true` で opt-in 化されたCloudFront Distribution
+  - 動的パスは `min_ttl=default_ttl=max_ttl=0` でエッジキャッシュ無効（受領証検証や監査ログを汚さない）
+  - WAF → Kinesis Firehose → S3 (Object Lock COMPLIANCE) でWAFログをWORM保管
+  - `aws_wafv2_web_acl_logging_configuration.redacted_fields` で `authorization` / `cookie` / `certificate_serial` をWAFログから除外
+  - `tools/lint_infrastructure_docs.py` を拡張し、Object Lock / Firehose / redact指定の存在を静的検査
 - helm-chart-testing CIジョブ: `.github/workflows/ci.yml` `helm-chart-testing` ジョブ（Claude Code セッション 8）
   - 本物の `helm lint` + `helm template` を memory/sqlite/postgres 3プロファイルで実行
   - `kubeconform -strict` でレンダ済みマニフェストを Kubernetes スキーマ検証
@@ -463,8 +475,10 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 18. ~~**Helmチャートの helm lint / helm template CI**~~ → Claude Code セッション 8 で `helm-chart-testing` ジョブ追加（helm + kubeconform）。
 19. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（積み残し最重要）。
 20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Codex セッション17で実Redis統合テストCIと `docker-compose.test.yml` まで追加済み。
-21. **監査チェーンチェックポイントの永続化**: Claude Code セッション 8 で API は対応済。`audit_log` テーブルに `checkpoint` 列を加え、N件ごとに checkpoint hash を残すと、再起動後も最後のチェックポイントから検証できる。
-22. **CloudFront Distribution 本体 + WAFログ配送**: Codex セッション16のWAFサンプルは ACL/ルール定義のみ。CloudFront distribution と Kinesis Firehose 経由のログ配送を Terraform で例示する。
+21. ~~**監査チェーンチェックポイントAPI**~~ → Claude Code セッション 9 で `/audit-log/checkpoints` を追加。次は `audit_log` に専用 `checkpoint` 列を増やし、N件毎の hash を永続化（現在はオンザフライ計算）。
+22. ~~**CloudFront Distribution 本体 + WAFログ配送**~~ → Claude Code セッション 9 で `cloudfront.tf` を opt-in 追加（Distribution + Firehose + S3 Object Lock + redacted_fields）。次は `terraform validate` / `terraform plan` を CI で回す `infrastructure-validate` ジョブを追加。
+23. **クライアントSDK**: 受領証検証＋監査チェックポイント自動取得を内包した薄いPython/TypeScript SDKを `clients/` 配下に追加すると、サードパーティ監査者の参入が容易になる。
+24. **本番暗号への置き換え**（積み残し最重要・このセッションでも未着手）
 
 ## 既知の制約
 
