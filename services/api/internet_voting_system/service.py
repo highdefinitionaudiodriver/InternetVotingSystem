@@ -11,6 +11,15 @@ from .repository_base import Repository
 RECEIPT_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
+def _escape_prometheus_label(value: str) -> str:
+    """Escape a label value per the Prometheus text exposition spec.
+
+    Backslash, double-quote, and newline are the only characters that must be
+    escaped (https://prometheus.io/docs/instrumenting/exposition_formats/).
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 class VotingService:
     def __init__(self, repository: Repository | None = None, crypto: DemoCryptoSuite | None = None) -> None:
         self.repository = repository or InMemoryRepository()
@@ -119,6 +128,38 @@ class VotingService:
     def verify_audit_chain(self) -> dict[str, Any]:
         """Expose audit-log integrity verification (hash-chain replay)."""
         return self.repository.verify_audit_chain()
+
+    def metrics_prometheus(self) -> str:
+        """Same data as ``metrics_summary`` rendered in Prometheus text exposition format.
+
+        Output is compatible with the ``text/plain; version=0.0.4`` content type
+        consumed by Prometheus and most compatible scrapers (VictoriaMetrics,
+        Grafana Agent, etc.). Only the safe-to-expose aggregates are emitted;
+        the same privacy posture as ``metrics_summary`` applies.
+        """
+        summary = self.metrics_summary()
+        lines: list[str] = [
+            "# HELP internet_voting_total_elections Number of elections registered in this API.",
+            "# TYPE internet_voting_total_elections gauge",
+            f"internet_voting_total_elections {summary['total_elections']}",
+            "# HELP internet_voting_total_ballots_recorded Total ballots stored across all elections.",
+            "# TYPE internet_voting_total_ballots_recorded counter",
+            f"internet_voting_total_ballots_recorded {summary['total_ballots_recorded']}",
+            "# HELP internet_voting_audit_log_entries Number of hash-chained audit log entries.",
+            "# TYPE internet_voting_audit_log_entries counter",
+            f"internet_voting_audit_log_entries {summary['audit_log_entries']}",
+            "# HELP internet_voting_election_ballots Ballots recorded per election.",
+            "# TYPE internet_voting_election_ballots gauge",
+        ]
+        for election in summary["elections"]:
+            election_id = _escape_prometheus_label(str(election["election_id"]))
+            status = _escape_prometheus_label(str(election["status"]))
+            lines.append(
+                f'internet_voting_election_ballots{{election_id="{election_id}",status="{status}"}} '
+                f"{election['ballots_recorded']}"
+            )
+        # Prometheus expositions end with a trailing newline.
+        return "\n".join(lines) + "\n"
 
     def metrics_summary(self) -> dict[str, Any]:
         """Aggregate operational metrics that are safe to expose publicly.

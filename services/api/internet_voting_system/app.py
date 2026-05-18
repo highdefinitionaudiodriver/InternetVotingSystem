@@ -7,7 +7,7 @@ import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .repository import InMemoryRepository
 from .service import VotingService
@@ -49,8 +49,33 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self) -> None:
         self._send_json(HTTPStatus.NO_CONTENT, {})
 
+    def _send_text(self, status: HTTPStatus, body: str, content_type: str) -> None:
+        payload = body.encode("utf-8")
+        self.send_response(status.value)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _wants_prometheus(self, parsed_url: Any) -> bool:
+        """Decide whether the client asked for Prometheus text exposition format.
+
+        Honour either ``?format=prometheus`` for one-off curls or the standard
+        ``Accept: text/plain`` / ``Accept: application/openmetrics-text`` that
+        Prometheus and OpenMetrics scrapers send.
+        """
+        query = parse_qs(parsed_url.query or "")
+        if "prometheus" in query.get("format", []):
+            return True
+        accept = (self.headers.get("Accept") or "").lower()
+        return "text/plain" in accept or "openmetrics-text" in accept
+
     def do_GET(self) -> None:
-        path = urlparse(self.path).path.strip("/").split("/")
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path.strip("/").split("/")
         try:
             if path == ["health"]:
                 self._send_json(HTTPStatus.OK, {"status": "ok"})
@@ -83,7 +108,14 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.OK, self.service.verify_audit_chain())
                 return
             if path == ["metrics"]:
-                self._send_json(HTTPStatus.OK, self.service.metrics_summary())
+                if self._wants_prometheus(parsed_url):
+                    self._send_text(
+                        HTTPStatus.OK,
+                        self.service.metrics_prometheus(),
+                        "text/plain; version=0.0.4; charset=utf-8",
+                    )
+                else:
+                    self._send_json(HTTPStatus.OK, self.service.metrics_summary())
                 return
             self._send_error(HTTPStatus.NOT_FOUND, "not_found", "resource not found")
         except KeyError as exc:
@@ -139,17 +171,29 @@ def main() -> None:
     parser.add_argument(
         "--storage",
         default="memory",
-        choices=["memory", "sqlite"],
-        help="Storage backend (memory=volatile, sqlite=durable single-host)",
+        choices=["memory", "sqlite", "postgres"],
+        help="Storage backend (memory=volatile, sqlite=durable single-host, postgres=multi-host)",
     )
     parser.add_argument(
         "--sqlite-path",
         default="voting.sqlite3",
         help="SQLite database file path (used when --storage=sqlite)",
     )
+    parser.add_argument(
+        "--dsn",
+        default="",
+        help="PostgreSQL DSN, e.g. postgresql://user:pw@host:5432/voting (used when --storage=postgres)",
+    )
     args = parser.parse_args()
     if args.storage == "sqlite":
         repository = SqliteRepository(args.sqlite_path)
+    elif args.storage == "postgres":
+        if not args.dsn:
+            parser.error("--dsn is required when --storage=postgres")
+        # Imported lazily so installations that never use Postgres do not
+        # need the psycopg dependency on disk.
+        from .postgres_repository import PostgresRepository
+        repository = PostgresRepository(args.dsn)
     else:
         repository = InMemoryRepository()
     VotingRequestHandler.service = VotingService(repository=repository)

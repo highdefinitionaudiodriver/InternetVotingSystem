@@ -66,4 +66,44 @@ jobs:
             sleep 1
           done
           python tools/smoke_check.py --base-url http://127.0.0.1:8787
+          # Also verify the Prometheus metrics format actually renders.
+          curl -fsS -H 'Accept: text/plain' http://127.0.0.1:8787/metrics \
+            | grep -q 'internet_voting_total_elections'
           docker stop ivs-ci
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bring up the sqlite profile
+        run: docker compose --profile sqlite up -d --build
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null 2>&1; then
+              echo "API is healthy"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Wait for Web client
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8788/ | grep -q 'Internet Voting System'; then
+              echo "Web client is serving"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Smoke check against compose stack
+        run: python tools/smoke_check.py --base-url http://127.0.0.1:8787
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile sqlite down --volumes

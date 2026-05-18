@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-17 (Claude Code セッション 4 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 5 終了時)
 
 ## 作業場所
 
@@ -56,7 +56,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_repository_protocol.py` （Codex セッション9で追加、2件）
   - `test_smoke_check_tool.py` （Codex セッション10で追加、1件）
   - `test_metrics_and_shutdown.py` （Claude Code セッション 4 で追加、4件）
-  - 計31件すべてパス
+  - `test_prometheus_and_postgres.py` （Claude Code セッション 5 で追加、5件）
+  - 計36件すべてパス
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -78,16 +79,31 @@ G:\マイドライブ\claudecode\InternetVotingSystem
 - Graceful shutdown: `app.py` の `install_graceful_shutdown()` （Claude Code セッション 4 で追加）
   - SIGINT / SIGTERM / SIGBREAK を捕捉し、`server.shutdown()` を別スレッドから呼ぶ
   - Windows では SIGTERM が無効だが try/except で握り潰すため移植可能
-- 運用メトリクスエンドポイント: `GET /metrics` （Claude Code セッション 4 で追加）
+- 運用メトリクスエンドポイント: `GET /metrics` （Claude Code セッション 4 で追加、セッション 5 で Prometheus 形式並行対応）
   - 総選挙数、選挙別ballot数、監査ログエントリ数のみ返す
   - 候補者別集計（counts）や個別票情報は含めず、監視スクレーパが安全に取得できる
   - Webクライアントの「運用メトリクス」パネル、`tools/smoke_check.py` でも検査
+  - `?format=prometheus` または `Accept: text/plain` で Prometheus text exposition format（`version=0.0.4`）を返す
+  - `VotingService.metrics_prometheus()` がラベルエスケープを含めて整形
 - PostgreSQLスキーマ: `services/api/internet_voting_system/sql/postgresql_schema.sql` （Claude Code セッション 4 で追加）
   - `voting` スキーマ配下に elections / candidates / voter_status / ballot / audit_log を定義
   - SQLite版とロジカルモデルを一致させてある（差分レビュー容易）
   - 推奨ロール（jpki_gateway / blind_signer / ballot_box / tally）の最小権限GRANT文をコメントで提示
+- PostgreSQLリポジトリ実装: `services/api/internet_voting_system/postgres_repository.py` （Claude Code セッション 5 で追加）
+  - `psycopg` (3.x) を遅延 import。未インストール環境では明確な `RuntimeError`
+  - SQLite版と同等の API、`SELECT ... FOR UPDATE` でトークン発行を直列化
+  - JSONB カラム (`encrypted_vote`, `payload`) は `%s::jsonb` キャストで投入
+  - **CI未テスト**（libpq不要のためubuntuランナーでCIを組むのは可能、優先タスク参照）
+- `app.py --storage postgres --dsn ...` を新規追加（Claude Code セッション 5）
 - docker build CI: `.github/workflows/ci.yml` に `docker-build` ジョブ追加（Claude Code セッション 4）
   - ubuntu-latest 上で API/Web イメージをビルドし、APIコンテナを起動して `tools/smoke_check.py` を回す
+  - セッション 5 で Prometheus 形式の `/metrics` レスポンス確認も追加
+- docker compose smoke CI: `.github/workflows/ci.yml` に `compose-smoke` ジョブ追加（Claude Code セッション 5）
+  - `docker compose --profile sqlite up -d --build` で API + Web + ボリュームを起動
+  - API `/health`、Web `/`、`tools/smoke_check.py` をまとめて検証
+  - 終了時に `docker compose down --volumes` で完全清掃
+- 運用ドキュメント: `docs/operations.md` （Claude Code セッション 5 で追加）
+  - ストレージ選択 / メトリクス取得 / 監査整合性 / graceful shutdown / インシデント対応プレイブック
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -362,10 +378,12 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. ~~**コンテナ化**: 各バックエンドを Dockerfile 化。~~ → Claude Code セッション 3 で実装、セッション 4 で CI 化済。
 8. ~~**APIシャットダウン用 signal handler**~~ → Claude Code セッション 4 で実装済（`install_graceful_shutdown()`）。
-9. **PostgreSQLバックエンドの実装本体**: スキーマファイル `services/api/internet_voting_system/sql/postgresql_schema.sql` は用意済。`SqliteRepository` のメソッド構造をそのまま `psycopg` で書き直し、`BEGIN IMMEDIATE` を `SELECT ... FOR UPDATE` に置換するだけ。`app.py` の `--storage` 選択肢に `postgres` を追加し、`--dsn` フラグで接続文字列を渡せるようにする。
+9. ~~**PostgreSQLバックエンドの実装本体**~~ → Claude Code セッション 5 で `postgres_repository.py` を追加、`app.py --storage postgres --dsn ...` も対応済。次は GitHub Actions に `services: postgres:16-alpine` を追加した postgres-integration ジョブを足し、実際にスキーマ適用＋テスト＋負荷試験を回すこと。
 10. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える。
-11. **メトリクスのPrometheus化**: 現在は `/metrics` がJSONを返す。Prometheus テキスト形式 (`text/plain; version=0.0.4`) も並行で返せるようにし、scrape 設定例を `docs/operations.md` （未作成）に書く。
-12. **Docker compose プロファイルでの smoke 検証**: GitHub Actions `docker-build` ジョブは API イメージ単独のスモークまで。`docker compose --profile sqlite up -d` でAPI+Web+ボリュームを起動し、Web 静的配信も含めて検証するジョブを追加する。
+11. ~~**メトリクスのPrometheus化**~~ → Claude Code セッション 5 で対応済。次は Grafana ダッシュボード JSON を `docs/grafana/` に追加。
+12. ~~**Docker compose プロファイルでの smoke 検証**~~ → Claude Code セッション 5 で `compose-smoke` CIジョブ追加済。
+13. **Postgres専用テスト**: `test_prometheus_and_postgres.py::PostgresRepositoryImportTest` は import 動作のみ。実DB相手の統合テストを `test_postgres_integration.py` として追加し、GitHub Actions の services 機能で起動した PostgreSQL に対し実行する。テスト対象は `SqliteBackedServiceTest` と同等4ケース。
+14. **OpenAPI に /metrics の Prometheus レスポンスを追記**: 現状 OpenAPI は JSON 応答のみ宣言。`content: text/plain` 応答も `responses` に追加し、`tools/lint_openapi_privacy.py` のチェック範囲はそのまま維持する。
 
 ## 既知の制約
 
