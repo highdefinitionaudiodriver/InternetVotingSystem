@@ -135,6 +135,29 @@ jobs:
           IVS_TEST_REDIS_URL: "redis://127.0.0.1:6379/0"
         run: python -m unittest tests.test_redis_integration -v
 
+  infrastructure-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+
+      - name: terraform fmt -check
+        working-directory: docs/infrastructure/aws-waf-cloudfront
+        run: terraform fmt -check -recursive
+
+      - name: terraform init -backend=false
+        working-directory: docs/infrastructure/aws-waf-cloudfront
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: docs/infrastructure/aws-waf-cloudfront
+        run: terraform validate
+
   helm-chart-testing:
     runs-on: ubuntu-latest
     steps:

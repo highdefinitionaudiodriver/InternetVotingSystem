@@ -11,6 +11,8 @@
 - `client-web/` - ブラウザで動く簡易投票クライアント
 - `docs/api/openapi.yaml` - API定義
 - `docs/infrastructure/` - WAF/CDNなど周辺インフラのIaCサンプル
+- `clients/python/` - 監査者・観察者向け Python SDK（stdlibのみ、`ivs_client`）
+- `deploy/helm/` - Kubernetes Helm chart
 - `DESIGN.md` - システム設計書
 - `InternetVotingSystem_DesignDoc.xlsx` - Excel版設計書
 
@@ -121,6 +123,27 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 
 標準出力に成功件数、失敗件数、スループット、レイテンシをJSONで出力します。SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増えます。
 候補者IDは `GET /elections/{id}` から取得するため、`demo-2026` 以外の選挙にも利用できます。
+
+## Python SDK（監査者向け）
+
+`clients/python/` 配下に stdlib のみで動く薄い SDK があります。受領証検証、監査ログのページング、ハッシュチェーンのローカル再計算（サーバ側 `verify` を信用しない検証）を提供します。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\clients\python
+pip install -e .
+python -c "from ivs_client import VotingClient; print(VotingClient('http://127.0.0.1:8787').health())"
+```
+
+```python
+from ivs_client import VotingClient
+client = VotingClient("http://127.0.0.1:8787")
+ckpts = client.audit_checkpoints(interval=1000)
+latest = ckpts["checkpoints"][0]
+result = client.verify_audit_chain(from_log_id=latest["log_id"], prev_hash=latest["log_hash"])
+assert result["valid"]
+# あるいは全エントリをローカルで再計算（サーバの verify エンドポイントを信用しない）
+assert client.verify_audit_chain_locally()["valid"]
+```
 
 ## Redis統合テスト
 

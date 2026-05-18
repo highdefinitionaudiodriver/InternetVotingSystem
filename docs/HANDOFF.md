@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Claude Code セッション 9 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 10 終了時)
 
 ## 作業場所
 
@@ -66,7 +66,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_audit_checkpoints_and_redis.py` （Claude Code セッション 8 で追加、11件）
   - `test_redis_integration.py` （Codex セッション17で追加、2件。`IVS_TEST_REDIS_URL` 設定時のみ実行）
   - `test_audit_checkpoints_endpoint.py` （Claude Code セッション 9 で追加、7件）
-  - 計80件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り74件すべてパス）
+  - APIテスト計80件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り74件すべてパス）
+  - **SDKテスト**: `clients/python/tests/test_voting_client.py` 7件（Claude Code セッション 10 で追加）
+  - 合計87件（CI実行時は全件、ローカルでは PG/Redis 環境変数の有無で増減）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -167,6 +169,20 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `repository_base._verify_chain` 共通ヘルパに集約、3バックエンドで挙動が完全に一致
   - `GET /audit-log/verify?from=<log_id>&prev_hash=<head_hash>` で前回確認した chunk から再開可能
   - 既存の引数なし呼び出しはこれまで通り、レスポンスに `verified_from` フィールドを追加
+- Python SDK: `clients/python/ivs_client/` （Claude Code セッション 10 で追加）
+  - stdlib のみ。`VotingClient.health/list_elections/...` で OpenAPI と1:1の薄いラッパ
+  - `iter_audit_log()` ジェネレータが `?after=&limit=` を自動ページング
+  - `verify_audit_chain_locally()` でサーバ側 `/audit-log/verify` を信用せずクライアント側でハッシュチェーンを再計算
+  - エラー応答 `{error:{code,message}}` を `ApiError` 例外に変換
+  - `pyproject.toml` で `pip install -e clients/python` 可能（PyPI公開はしない）
+  - `tests/test_voting_client.py` 7件。`ApiError` 例外パス、ローカル replay vs サーバ verify の一致、SDK 公開API に `mynumber` 等の禁止パラメータが含まれないことを保証
+  - `tools/check_all.py` 経由で API テストとは別ステップで実行される
+- OpenAPI `$ref` 整合性チェッカ: `tools/validate_openapi_refs.py` （Claude Code セッション 10 で追加）
+  - 全 `$ref: "#/components/.../X"` が定義済コンポーネントを指すか、孤児コンポーネントが残っていないかを静的検査
+  - stdlib のみで実装（yaml パーサ非依存）
+- Infrastructure-validate CIジョブ: `.github/workflows/ci.yml` `infrastructure-validate` ジョブ（Claude Code セッション 10）
+  - `hashicorp/setup-terraform@v3` で Terraform 1.7.5 をインストール
+  - `terraform fmt -check -recursive` → `terraform init -backend=false` → `terraform validate` を `docs/infrastructure/aws-waf-cloudfront/` で実行
 - 監査チェックポイントAPI: `GET /audit-log/checkpoints?interval=<n>&limit=<m>` （Claude Code セッション 9 で追加）
   - N件毎の `(log_id, log_hash)` を newest-first で返却。tail エントリは常に含める
   - クライアントは最新チェックポイントを `/audit-log/verify?from=&prev_hash=` に渡して差分検証
@@ -477,8 +493,10 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Codex セッション17で実Redis統合テストCIと `docker-compose.test.yml` まで追加済み。
 21. ~~**監査チェーンチェックポイントAPI**~~ → Claude Code セッション 9 で `/audit-log/checkpoints` を追加。次は `audit_log` に専用 `checkpoint` 列を増やし、N件毎の hash を永続化（現在はオンザフライ計算）。
 22. ~~**CloudFront Distribution 本体 + WAFログ配送**~~ → Claude Code セッション 9 で `cloudfront.tf` を opt-in 追加（Distribution + Firehose + S3 Object Lock + redacted_fields）。次は `terraform validate` / `terraform plan` を CI で回す `infrastructure-validate` ジョブを追加。
-23. **クライアントSDK**: 受領証検証＋監査チェックポイント自動取得を内包した薄いPython/TypeScript SDKを `clients/` 配下に追加すると、サードパーティ監査者の参入が容易になる。
+23. ~~**クライアントSDK**~~ → Claude Code セッション 10 で Python SDK `clients/python/ivs_client/` を追加。次は同等の TypeScript SDK を `clients/typescript/` に追加（npm 公開せずソース配布）し、Web クライアントから直接 import できるようにする。
 24. **本番暗号への置き換え**（積み残し最重要・このセッションでも未着手）
+25. **`audit_log.checkpoint` カラム永続化**: 現在 `/audit-log/checkpoints` はオンザフライ計算。N件毎の checkpoint を `audit_log` テーブルに永続化すれば、API 再起動直後でも即応答可能。schema migration を追加して 3 バックエンドへ展開する必要がある。
+26. **CIマトリクス整理**: 現状 7 ジョブ（test / docker-build / postgres-integration / redis-integration / helm-chart-testing / compose-smoke / infrastructure-validate）。並列実行コストが見えてきたら `needs:` を整理して critical path を短縮する。
 
 ## 既知の制約
 

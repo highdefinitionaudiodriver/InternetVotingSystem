@@ -25,7 +25,13 @@ def main() -> None:
         [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
         cwd=ROOT / "services" / "api",
     )
+    run_step(
+        "Python SDK unit tests",
+        [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+        cwd=ROOT / "clients" / "python",
+    )
     run_step("OpenAPI privacy lint", [sys.executable, "tools/lint_openapi_privacy.py"])
+    run_step("OpenAPI $ref integrity", [sys.executable, "tools/validate_openapi_refs.py"])
     run_step("Helm chart static lint", [sys.executable, "tools/lint_helm_chart.py"])
     run_step("Infrastructure docs lint", [sys.executable, "tools/lint_infrastructure_docs.py"])
     run_step("Web JavaScript syntax", [node, "--check", "client-web/main.js"])
@@ -43,6 +49,7 @@ def main() -> None:
             "tools/check_all.py",
             "tools/init_postgres.py",
             "tools/backup_sqlite.py",
+            "tools/validate_openapi_refs.py",
         ],
     )
     run_step(
