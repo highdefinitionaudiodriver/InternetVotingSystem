@@ -37,7 +37,12 @@ def main() -> None:
             "tools/loadtest.py",
             "tools/lint_openapi_privacy.py",
             "tools/check_all.py",
+            "tools/init_postgres.py",
         ],
+    )
+    run_step(
+        "Grafana dashboard JSON parses",
+        [sys.executable, "-c", "import json,pathlib; json.loads(pathlib.Path('docs/grafana/internet-voting-system.json').read_text(encoding='utf-8'))"],
     )
     print("\nAll checks passed", flush=True)
 

@@ -239,6 +239,20 @@ paths:
       description: |
         Returns aggregate counts only — no voter identity, no per-candidate
         breakdown, no ballot identifiers. Safe for monitoring scrapers.
+
+        Format negotiation:
+        - Default: `application/json` (MetricsSummary schema).
+        - Prometheus text exposition (`text/plain; version=0.0.4`) is
+          returned when the client sends `Accept: text/plain` or
+          `?format=prometheus`.
+      parameters:
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [prometheus]
+          description: Set to `prometheus` to force Prometheus text exposition.
       responses:
         "200":
           description: Metrics summary
@@ -246,6 +260,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MetricsSummary"
+            text/plain:
+              schema:
+                type: string
+                description: |
+                  Prometheus text exposition format (version 0.0.4). Each
+                  family is preceded by `# HELP` and `# TYPE` comments and
+                  the body ends with a trailing newline.
+              example: |
+                # HELP internet_voting_total_elections Number of elections registered in this API.
+                # TYPE internet_voting_total_elections gauge
+                internet_voting_total_elections 1
+                # HELP internet_voting_total_ballots_recorded Total ballots stored across all elections.
+                # TYPE internet_voting_total_ballots_recorded counter
+                internet_voting_total_ballots_recorded 42
 
 components:
   parameters:

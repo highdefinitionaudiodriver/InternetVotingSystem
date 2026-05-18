@@ -71,6 +71,40 @@ jobs:
             | grep -q 'internet_voting_total_elections'
           docker stop ivs-ci
 
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: voting
+          POSTGRES_PASSWORD: voting
+          POSTGRES_DB: voting
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voting -d voting"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install psycopg
+        run: pip install "psycopg[binary]>=3.1"
+
+      - name: Run PostgreSQL integration tests
+        working-directory: services/api
+        env:
+          IVS_TEST_PG_DSN: "postgresql://voting:voting@127.0.0.1:5432/voting"
+        run: python -m unittest tests.test_postgres_integration -v
+
   compose-smoke:
     runs-on: ubuntu-latest
     needs: docker-build

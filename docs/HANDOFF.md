@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Claude Code セッション 5 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 6 終了時)
 
 ## 作業場所
 
@@ -57,7 +57,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_smoke_check_tool.py` （Codex セッション10で追加、1件）
   - `test_metrics_and_shutdown.py` （Claude Code セッション 4 で追加、4件）
   - `test_prometheus_and_postgres.py` （Claude Code セッション 5 で追加、5件）
-  - 計36件すべてパス
+  - `test_postgres_integration.py` （Claude Code セッション 6 で追加、4件。`IVS_TEST_PG_DSN` 設定時のみ実行）
+  - 計40件（DSN未設定では postgres 4件スキップ、残り36件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -104,6 +105,17 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 終了時に `docker compose down --volumes` で完全清掃
 - 運用ドキュメント: `docs/operations.md` （Claude Code セッション 5 で追加）
   - ストレージ選択 / メトリクス取得 / 監査整合性 / graceful shutdown / インシデント対応プレイブック
+- Postgres統合テスト: `services/api/tests/test_postgres_integration.py` （Claude Code セッション 6 で追加）
+  - `IVS_TEST_PG_DSN` 環境変数が設定されていれば実 DB に対して4ケース実行、未設定ならスキップ
+- Postgres-integration CIジョブ: `.github/workflows/ci.yml` に追加（Claude Code セッション 6）
+  - GitHub Actions の `services: postgres:16-alpine` を使用、`psycopg[binary]` を pip インストールしてテスト実行
+- Grafanaダッシュボード: `docs/grafana/internet-voting-system.json` + README （Claude Code セッション 6 で追加）
+  - `internet_voting_*` Prometheus metrics のみを参照するスタータダッシュボード
+  - 候補者別カウントや個別票情報を絶対に表示しないことを README に明文化
+- Postgresスキーマ適用ツール: `tools/init_postgres.py` （Claude Code セッション 6 で追加）
+  - `--dsn` 必須、`--drop` で `DROP SCHEMA voting CASCADE` 後に再適用
+  - 冪等。`postgresql_schema.sql` を読み込み autocommit モードで実行
+- OpenAPI: `/metrics` に `text/plain` レスポンスと `?format=prometheus` query パラメータを追加（Claude Code セッション 6）
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -378,12 +390,15 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 6. **負荷試験結果の拡充**: `tools/loadtest.py` と `docs/performance.md` は追加済み。より大きい `--voters` と `--concurrency` で、ロック待ち・失敗率・p95を追記する。
 7. ~~**コンテナ化**: 各バックエンドを Dockerfile 化。~~ → Claude Code セッション 3 で実装、セッション 4 で CI 化済。
 8. ~~**APIシャットダウン用 signal handler**~~ → Claude Code セッション 4 で実装済（`install_graceful_shutdown()`）。
-9. ~~**PostgreSQLバックエンドの実装本体**~~ → Claude Code セッション 5 で `postgres_repository.py` を追加、`app.py --storage postgres --dsn ...` も対応済。次は GitHub Actions に `services: postgres:16-alpine` を追加した postgres-integration ジョブを足し、実際にスキーマ適用＋テスト＋負荷試験を回すこと。
+9. ~~**PostgreSQLバックエンドの実装本体**~~ → セッション 5 で実装、セッション 6 で `services: postgres` 統合テスト＋CIジョブまで完了。
 10. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える。
-11. ~~**メトリクスのPrometheus化**~~ → Claude Code セッション 5 で対応済。次は Grafana ダッシュボード JSON を `docs/grafana/` に追加。
-12. ~~**Docker compose プロファイルでの smoke 検証**~~ → Claude Code セッション 5 で `compose-smoke` CIジョブ追加済。
-13. **Postgres専用テスト**: `test_prometheus_and_postgres.py::PostgresRepositoryImportTest` は import 動作のみ。実DB相手の統合テストを `test_postgres_integration.py` として追加し、GitHub Actions の services 機能で起動した PostgreSQL に対し実行する。テスト対象は `SqliteBackedServiceTest` と同等4ケース。
-14. **OpenAPI に /metrics の Prometheus レスポンスを追記**: 現状 OpenAPI は JSON 応答のみ宣言。`content: text/plain` 応答も `responses` に追加し、`tools/lint_openapi_privacy.py` のチェック範囲はそのまま維持する。
+11. ~~**メトリクスのPrometheus化**~~ → セッション 5 で対応、セッション 6 で Grafana ダッシュボード追加済。
+12. ~~**Docker compose プロファイルでの smoke 検証**~~ → セッション 5 で `compose-smoke` CIジョブ追加済。
+13. ~~**Postgres専用テスト**~~ → セッション 6 で `test_postgres_integration.py` 追加済。
+14. ~~**OpenAPI に /metrics の Prometheus レスポンスを追記**~~ → セッション 6 で追記済。
+15. **クライアント側 JPKI 実接続**: Web版は公的個人認証JPKIブラウザ拡張、モバイル版はNFC SDK を組み込み、`certificate_serial` 直接入力フォームを置き換える。
+16. **負荷試験のPostgres版**: `tools/loadtest.py` を `--storage postgres` で起動した API に対して実行し、結果を `docs/performance.md` に追記。FOR UPDATE による直列化の影響を測定。
+17. **WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。
 
 ## 既知の制約
 
