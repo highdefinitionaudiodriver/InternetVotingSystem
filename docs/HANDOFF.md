@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Claude Code セッション 8 終了時)
+最終更新: 2026-05-18 (Codex セッション 17 終了時)
 
 ## 作業場所
 
@@ -64,7 +64,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_lifecycle_ratelimit_pagination.py` に環境変数rate limit設定テスト3件を追加（Codex セッション15）
   - `test_infrastructure_docs_lint.py` （Codex セッション16で追加、3件）
   - `test_audit_checkpoints_and_redis.py` （Claude Code セッション 8 で追加、11件）
-  - 計71件（DSN未設定では postgres 4件スキップ、残り67件すべてパス）
+  - `test_redis_integration.py` （Codex セッション17で追加、2件。`IVS_TEST_REDIS_URL` 設定時のみ実行）
+  - 計73件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り67件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -158,6 +159,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `RedisRateLimiter`: 単一の Lua スクリプトで HMGET → 補充 → 判定 → HMSET → EXPIRE を atomic に実行
   - `redis` パッケージは遅延 import、未インストールでも build_rate_limiter_from_env 経路を踏むまでエラー出ない
   - `build_rate_limiter_from_env` を拡張: `IVS_RATE_LIMIT_BACKEND=memory|redis`、`IVS_RATE_LIMIT_REDIS_URL` を解釈
+- Redis統合テスト: `services/api/tests/test_redis_integration.py` + `docker-compose.test.yml` + CI `redis-integration` ジョブ（Codex セッション17）
+  - `IVS_TEST_REDIS_URL` 未設定なら通常テストではスキップ
+  - GitHub Actionsでは `redis:7-alpine` サービスを起動し、`redis>=5` をインストールして実Redisに対して共有bucket/TTLを検証
 - 監査チェーン検証チェックポイント対応: `verify_audit_chain(from_log_id, expected_prev_hash)` （Claude Code セッション 8）
   - `repository_base._verify_chain` 共通ヘルパに集約、3バックエンドで挙動が完全に一致
   - `GET /audit-log/verify?from=<log_id>&prev_hash=<head_hash>` で前回確認した chunk から再開可能
@@ -391,7 +395,8 @@ Copy-Item -LiteralPath `
   'C:\Users\highd\Documents\Github\InternetVotingSystem\deploy',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\Dockerfile',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\Dockerfile.web',`
-  'C:\Users\highd\Documents\Github\InternetVotingSystem\docker-compose.yml' `
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\docker-compose.yml',`
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\docker-compose.test.yml' `
   -Destination 'G:\マイドライブ\claudecode\InternetVotingSystem' -Recurse -Force
 ```
 
@@ -457,7 +462,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 17. ~~**WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。~~ → Codex セッション16でAWS WAF + CloudFrontのTerraformサンプルと静的lintを追加済み。CloudFront Distribution本体やWAFログ配送は未実装。
 18. ~~**Helmチャートの helm lint / helm template CI**~~ → Claude Code セッション 8 で `helm-chart-testing` ジョブ追加（helm + kubeconform）。
 19. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（積み残し最重要）。
-20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Lua スクリプト + 環境変数経由切替 + fake-client テストまで対応。実 Redis 相手の統合テストCIは未実装、`docker-compose.test.yml` で `redis:alpine` を立てるジョブを次に追加すると良い。
+20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Codex セッション17で実Redis統合テストCIと `docker-compose.test.yml` まで追加済み。
 21. **監査チェーンチェックポイントの永続化**: Claude Code セッション 8 で API は対応済。`audit_log` テーブルに `checkpoint` 列を加え、N件ごとに checkpoint hash を残すと、再起動後も最後のチェックポイントから検証できる。
 22. **CloudFront Distribution 本体 + WAFログ配送**: Codex セッション16のWAFサンプルは ACL/ルール定義のみ。CloudFront distribution と Kinesis Firehose 経由のログ配送を Terraform で例示する。
 

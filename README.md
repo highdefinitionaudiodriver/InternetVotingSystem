@@ -122,6 +122,20 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 標準出力に成功件数、失敗件数、スループット、レイテンシをJSONで出力します。SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増えます。
 候補者IDは `GET /elections/{id}` から取得するため、`demo-2026` 以外の選挙にも利用できます。
 
+## Redis統合テスト
+
+分散レート制限の実Redisテストは通常の `tools\check_all.py` ではスキップされます。ローカルで確認する場合:
+
+```powershell
+docker compose -f docker-compose.test.yml up -d redis
+Set-Location services\api
+$env:IVS_TEST_REDIS_URL = 'redis://127.0.0.1:6379/0'
+pip install 'redis>=5'
+python -m unittest tests.test_redis_integration -v
+Set-Location ..\..
+docker compose -f docker-compose.test.yml down --volumes
+```
+
 ## 実装上の注意
 
 このプロトタイプは制度・暗号方式の実証用です。本番利用には、設計書の通り RFC 9474 準拠ブラインド署名、ElGamal/ristretto255、Chaum-Pedersen系ZKP、DKG、Shamir閾値復号、JPKI/選挙人名簿APIの実接続、WORM監査基盤が必要です。

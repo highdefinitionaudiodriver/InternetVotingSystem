@@ -1,6 +1,6 @@
 # Operations Runbook
 
-最終更新: 2026-05-18 (Codex セッション 15)
+最終更新: 2026-05-18 (Codex セッション 17)
 
 このドキュメントは、本プロトタイプを開発/評価環境で運用する際の手順をまとめます。本番運用は別途、暗号差し替え・PostgreSQL化・JPKI実接続・WORM監査基盤が必要です。
 
@@ -41,12 +41,33 @@ APIサーバーはIP単位の in-process token bucket を使います。デフ�
 | 変数 | デフォルト | 説明 |
 |---|---:|---|
 | `IVS_RATE_LIMIT_ENABLED` | `true` | `false` / `0` / `off` で無効化 |
+| `IVS_RATE_LIMIT_BACKEND` | `memory` | `memory` または `redis` |
+| `IVS_RATE_LIMIT_REDIS_URL` | なし | Redisバックエンド使用時の接続URL |
 | `IVS_RATE_LIMIT_WRITE_CAPACITY` | `30` | POST系エンドポイントのburst上限 |
 | `IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC` | `5` | POST系エンドポイントの秒間補充量 |
 | `IVS_RATE_LIMIT_READ_CAPACITY` | `120` | GET系エンドポイントのburst上限 |
 | `IVS_RATE_LIMIT_READ_REFILL_PER_SEC` | `30` | GET系エンドポイントの秒間補充量 |
 
 Helm chartでは `values.yaml` の `rateLimit` セクションから同じ値をDeployment環境変数へ渡します。
+
+複数APIインスタンスでレート制限を共有する場合はRedisバックエンドを使います。
+
+```bash
+export IVS_RATE_LIMIT_BACKEND=redis
+export IVS_RATE_LIMIT_REDIS_URL=redis://redis.internal:6379/0
+pip install 'redis>=5'
+python -m internet_voting_system.app --storage postgres --dsn "$IVS_PG_DSN"
+```
+
+ローカルで実Redis統合テストを実行する場合:
+
+```bash
+docker compose -f docker-compose.test.yml up -d redis
+cd services/api
+IVS_TEST_REDIS_URL=redis://127.0.0.1:6379/0 python -m unittest tests.test_redis_integration -v
+cd ../..
+docker compose -f docker-compose.test.yml down --volumes
+```
 
 ---
 
