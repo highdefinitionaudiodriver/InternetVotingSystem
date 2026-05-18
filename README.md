@@ -10,6 +10,7 @@
 - `services/api/tests/` - APIとドメインロジックのテスト
 - `client-web/` - ブラウザで動く簡易投票クライアント
 - `docs/api/openapi.yaml` - API定義
+- `docs/infrastructure/` - WAF/CDNなど周辺インフラのIaCサンプル
 - `DESIGN.md` - システム設計書
 - `InternetVotingSystem_DesignDoc.xlsx` - Excel版設計書
 
@@ -89,6 +90,15 @@ OpenAPIのフィールド名・スキーマ名・パラメータ名に、マイ�
 ```powershell
 Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_openapi_privacy.py
+```
+
+## Infrastructure docs lint
+
+`docs/infrastructure/` のWAF/CDNサンプルに、必須ファイルやプライバシー保護上の設定が残っているか確認できます。
+
+```powershell
+Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_infrastructure_docs.py
 ```
 
 ## スモークチェック

@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Codex セッション 15 終了時)
+最終更新: 2026-05-18 (Codex セッション 16 終了時)
 
 ## 作業場所
 
@@ -62,7 +62,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_backup_sqlite_tool.py` （Claude Code セッション 7 で追加、2件）
   - `test_helm_chart_lint.py` （Codex セッション14で追加、3件）
   - `test_lifecycle_ratelimit_pagination.py` に環境変数rate limit設定テスト3件を追加（Codex セッション15）
-  - 計57件（DSN未設定では postgres 4件スキップ、残り53件すべてパス）
+  - `test_infrastructure_docs_lint.py` （Codex セッション16で追加、3件）
+  - 計60件（DSN未設定では postgres 4件スキップ、残り56件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -147,6 +148,13 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - 本物の `helm lint` / `helm template` を置き換えるものではないため、Helm導入後のCI拡張は引き続き推奨
   - SQLite時は強制的に replicaCount=1（PVC競合回避）
   - Postgres時に dsn 未指定なら `helm template` が `fail` で停止
+- Infrastructure docs: `docs/infrastructure/` （Codex セッション16で追加）
+  - `aws-waf-cloudfront/` にAWS WAFv2 + CloudFront向けTerraformサンプルを追加
+  - IP reputation / anonymous IP / common / known bad inputs / API path rate limit を定義
+  - WAFログのsampled requestを無効にし、票本文・候補者別集計・受領証などをエッジログへ積極的に出さない方針をREADMEに明記
+- Infrastructure docs lint: `tools/lint_infrastructure_docs.py` （Codex セッション16で追加）
+  - WAFサンプルの必須ファイル、主要AWS管理ルール、IPベースrate limit、`sampled_requests_enabled = false` を検査
+  - `tools/check_all.py` とCIの通常チェック経由で実行される
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -433,7 +441,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 14. ~~**OpenAPI に /metrics の Prometheus レスポンスを追記**~~ → セッション 6 で追記済。
 15. **クライアント側 JPKI 実接続**: Web版は公的個人認証JPKIブラウザ拡張、モバイル版はNFC SDK を組み込み、`certificate_serial` 直接入力フォームを置き換える。
 16. **負荷試験のPostgres版**: `tools/loadtest.py` を `--storage postgres` で起動した API に対して実行し、結果を `docs/performance.md` に追記。FOR UPDATE による直列化の影響を測定。
-17. **WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。
+17. ~~**WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。~~ → Codex セッション16でAWS WAF + CloudFrontのTerraformサンプルと静的lintを追加済み。CloudFront Distribution本体やWAFログ配送は未実装。
 18. **Helmチャートの helm lint / helm template CI**: Codex セッション14で標準ライブラリの静的lintは追加済み。次は `deploy/helm/internet-voting-system/` を `helm/chart-testing-action` で実レンダリング検証するCIジョブを追加。
 19. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（積み残し最重要）。
 20. **レート制限の分散化**: 現状は in-process token bucket なので APIインスタンス間で共有されない。Redisバックエンド `RedisRateLimiter` を追加し、`RateLimiter` プロトコルでスイッチ可能にする。
