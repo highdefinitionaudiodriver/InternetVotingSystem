@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Claude Code セッション 10 終了時)
+最終更新: 2026-05-18 (Codex セッション 18 終了時)
 
 ## 作業場所
 
@@ -68,7 +68,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_audit_checkpoints_endpoint.py` （Claude Code セッション 9 で追加、7件）
   - APIテスト計80件（DSN/Redis未設定では postgres 4件 + redis 2件スキップ、残り74件すべてパス）
   - **SDKテスト**: `clients/python/tests/test_voting_client.py` 7件（Claude Code セッション 10 で追加）
-  - 合計87件（CI実行時は全件、ローカルでは PG/Redis 環境変数の有無で増減）
+  - **TypeScript SDKテスト**: `clients/typescript/tests/client.test.mjs` 5件（Codex セッション 18 で追加）
+  - 合計92件（CI実行時は全件、ローカルでは PG/Redis 環境変数の有無で増減）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -177,6 +178,12 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `pyproject.toml` で `pip install -e clients/python` 可能（PyPI公開はしない）
   - `tests/test_voting_client.py` 7件。`ApiError` 例外パス、ローカル replay vs サーバ verify の一致、SDK 公開API に `mynumber` 等の禁止パラメータが含まれないことを保証
   - `tools/check_all.py` 経由で API テストとは別ステップで実行される
+- TypeScript SDK: `clients/typescript/` （Codex セッション 18 で追加）
+  - 依存なし、fetchベースの async ESM クライアント。ブラウザ/Node 18+想定
+  - Python SDKと同じくAPI routeに対応する薄いラッパ、`iterAuditLog()` と `verifyAuditChainLocally()` を提供
+  - `src/index.js` は実行用ESM、`src/index.ts` は型付きソース/宣言面。npm公開はせずソース配布
+  - `clients/typescript/tests/client.test.mjs` は Node 標準 `node:test` で routing、ApiError、ページング、ローカル監査チェーン再計算、禁止パラメータ非露出を検証
+  - `tools/check_all.py` に `node --check clients/typescript/src/index.js` と `node --test clients/typescript/tests/client.test.mjs` を追加済み
 - OpenAPI `$ref` 整合性チェッカ: `tools/validate_openapi_refs.py` （Claude Code セッション 10 で追加）
   - 全 `$ref: "#/components/.../X"` が定義済コンポーネントを指すか、孤児コンポーネントが残っていないかを静的検査
   - stdlib のみで実装（yaml パーサ非依存）
@@ -417,6 +424,7 @@ Copy-Item -LiteralPath `
 Copy-Item -LiteralPath `
   'C:\Users\highd\Documents\Github\InternetVotingSystem\services',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\client-web',`
+  'C:\Users\highd\Documents\Github\InternetVotingSystem\clients',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\docs',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\tools',`
   'C:\Users\highd\Documents\Github\InternetVotingSystem\.github',`
@@ -493,7 +501,7 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 20. ~~**レート制限の分散化**~~ → Claude Code セッション 8 で `RedisRateLimiter` 実装、Codex セッション17で実Redis統合テストCIと `docker-compose.test.yml` まで追加済み。
 21. ~~**監査チェーンチェックポイントAPI**~~ → Claude Code セッション 9 で `/audit-log/checkpoints` を追加。次は `audit_log` に専用 `checkpoint` 列を増やし、N件毎の hash を永続化（現在はオンザフライ計算）。
 22. ~~**CloudFront Distribution 本体 + WAFログ配送**~~ → Claude Code セッション 9 で `cloudfront.tf` を opt-in 追加（Distribution + Firehose + S3 Object Lock + redacted_fields）。次は `terraform validate` / `terraform plan` を CI で回す `infrastructure-validate` ジョブを追加。
-23. ~~**クライアントSDK**~~ → Claude Code セッション 10 で Python SDK `clients/python/ivs_client/` を追加。次は同等の TypeScript SDK を `clients/typescript/` に追加（npm 公開せずソース配布）し、Web クライアントから直接 import できるようにする。
+23. ~~**クライアントSDK**~~ → Claude Code セッション 10 で Python SDK `clients/python/ivs_client/`、Codex セッション18で TypeScript/ESM SDK `clients/typescript/` を追加。次は Web クライアントからSDKを直接 import する形に寄せる。
 24. **本番暗号への置き換え**（積み残し最重要・このセッションでも未着手）
 25. **`audit_log.checkpoint` カラム永続化**: 現在 `/audit-log/checkpoints` はオンザフライ計算。N件毎の checkpoint を `audit_log` テーブルに永続化すれば、API 再起動直後でも即応答可能。schema migration を追加して 3 バックエンドへ展開する必要がある。
 26. **CIマトリクス整理**: 現状 7 ジョブ（test / docker-build / postgres-integration / redis-integration / helm-chart-testing / compose-smoke / infrastructure-validate）。並列実行コストが見えてきたら `needs:` を整理して critical path を短縮する。

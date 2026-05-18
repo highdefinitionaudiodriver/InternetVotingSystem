@@ -30,6 +30,8 @@ def main() -> None:
         [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
         cwd=ROOT / "clients" / "python",
     )
+    run_step("TypeScript SDK syntax", [node, "--check", "clients/typescript/src/index.js"])
+    run_step("TypeScript SDK unit tests", [node, "--test", "clients/typescript/tests/client.test.mjs"])
     run_step("OpenAPI privacy lint", [sys.executable, "tools/lint_openapi_privacy.py"])
     run_step("OpenAPI $ref integrity", [sys.executable, "tools/validate_openapi_refs.py"])
     run_step("Helm chart static lint", [sys.executable, "tools/lint_helm_chart.py"])

@@ -9,6 +9,8 @@
 - `services/api/internet_voting_system/` - 投票APIサーバー
 - `services/api/tests/` - APIとドメインロジックのテスト
 - `client-web/` - ブラウザで動く簡易投票クライアント
+- `clients/python/` - Python SDK
+- `clients/typescript/` - TypeScript/ESM SDK
 - `docs/api/openapi.yaml` - API定義
 - `docs/infrastructure/` - WAF/CDNなど周辺インフラのIaCサンプル
 - `clients/python/` - 監査者・観察者向け Python SDK（stdlibのみ、`ivs_client`）
@@ -83,6 +85,22 @@ CI相当のチェックをまとめて実行する場合:
 ```powershell
 Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 & 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\check_all.py
+```
+
+## SDK
+
+Python SDK:
+
+```powershell
+Set-Location clients\python
+& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
+```
+
+TypeScript/ESM SDK:
+
+```powershell
+Set-Location clients\typescript
+node --test tests\client.test.mjs
 ```
 
 ## OpenAPIプライバシーlint
