@@ -26,6 +26,7 @@ def main() -> None:
         cwd=ROOT / "services" / "api",
     )
     run_step("OpenAPI privacy lint", [sys.executable, "tools/lint_openapi_privacy.py"])
+    run_step("Helm chart static lint", [sys.executable, "tools/lint_helm_chart.py"])
     run_step("Web JavaScript syntax", [node, "--check", "client-web/main.js"])
     run_step(
         "Standalone tool syntax",
@@ -36,6 +37,7 @@ def main() -> None:
             "tools/smoke_check.py",
             "tools/loadtest.py",
             "tools/lint_openapi_privacy.py",
+            "tools/lint_helm_chart.py",
             "tools/check_all.py",
             "tools/init_postgres.py",
             "tools/backup_sqlite.py",
