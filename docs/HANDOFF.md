@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Codex セッション 14 終了時)
+最終更新: 2026-05-18 (Codex セッション 15 終了時)
 
 ## 作業場所
 
@@ -61,7 +61,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_lifecycle_ratelimit_pagination.py` （Claude Code セッション 7 で追加、9件）
   - `test_backup_sqlite_tool.py` （Claude Code セッション 7 で追加、2件）
   - `test_helm_chart_lint.py` （Codex セッション14で追加、3件）
-  - 計54件（DSN未設定では postgres 4件スキップ、残り50件すべてパス）
+  - `test_lifecycle_ratelimit_pagination.py` に環境変数rate limit設定テスト3件を追加（Codex セッション15）
+  - 計57件（DSN未設定では postgres 4件スキップ、残り53件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -124,6 +125,8 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `app.py` で全 GET（health/metrics除く）/全 POST に適用
   - `X-Forwarded-For` を honor（CDN/WAFがクライアント側値を必ず上書きする前提）
   - `429 rate_limited` を返却、エラー envelope `{error:{code,message}}`
+  - Codex セッション15で `IVS_RATE_LIMIT_*` 環境変数による有効/無効化・容量/補充量設定を追加
+  - Helm chartの `values.yaml` `rateLimit` セクションからAPI Deployment環境変数へ反映
   - クラス属性 `VotingRequestHandler.rate_limiter = None` で無効化可能（テスト用）
 - 選挙クローズエンドポイント: `POST /elections/{id}/close` （Claude Code セッション 7 で追加）
   - `Election.status` を `closed` に遷移、以後 authenticate / issue-token / submit-ballot は `not open` エラー

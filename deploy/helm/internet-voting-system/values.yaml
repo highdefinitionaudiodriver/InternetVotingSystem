@@ -35,6 +35,13 @@ web:
 
 replicaCount: 2
 
+rateLimit:
+  enabled: true
+  writeCapacity: 30
+  readCapacity: 120
+  writeRefillPerSecond: 5
+  readRefillPerSecond: 30
+
 resources:
   api:
     requests: { cpu: "100m", memory: "128Mi" }

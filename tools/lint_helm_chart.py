@@ -32,6 +32,7 @@ VALUES_REQUIRED_SNIPPETS = (
     "repository: ghcr.io/highdefinitionaudiodriver/internet-voting-system-api",
     "repository: ghcr.io/highdefinitionaudiodriver/internet-voting-system-web",
     "replicaCount:",
+    "rateLimit:",
 )
 
 
@@ -72,6 +73,8 @@ def lint_chart(chart_dir: Path = DEFAULT_CHART_DIR) -> list[str]:
         issues.append("api-deployment.yaml must force one replica for sqlite storage")
     if "/health" not in api_deployment:
         issues.append("api-deployment.yaml must configure health probes")
+    if "IVS_RATE_LIMIT_ENABLED" not in api_deployment:
+        issues.append("api-deployment.yaml must pass rate limit settings from values")
     postgres_secret = _read_if_present(chart_dir / "templates" / "postgres-secret.yaml")
     if "fail" not in postgres_secret or "storage.postgres.dsn" not in postgres_secret:
         issues.append("postgres-secret.yaml must fail fast when postgres DSN is missing")

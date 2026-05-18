@@ -6,7 +6,7 @@ import unittest
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 
-from internet_voting_system.app import VotingRequestHandler
+from internet_voting_system.app import VotingRequestHandler, build_rate_limiter_from_env
 from internet_voting_system.rate_limit import RateLimiter
 from internet_voting_system.service import VotingService
 
@@ -67,6 +67,30 @@ class RateLimiterUnitTest(unittest.TestCase):
         self.assertFalse(rl.check("a", "write"))
         # Different IP gets its own bucket.
         self.assertTrue(rl.check("b", "write"))
+
+    def test_build_rate_limiter_from_env_supports_custom_limits(self) -> None:
+        rl = build_rate_limiter_from_env(
+            {
+                "IVS_RATE_LIMIT_WRITE_CAPACITY": "1",
+                "IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC": "0",
+                "IVS_RATE_LIMIT_READ_CAPACITY": "2",
+                "IVS_RATE_LIMIT_READ_REFILL_PER_SEC": "0",
+            }
+        )
+        self.assertIsNotNone(rl)
+        assert rl is not None
+        self.assertTrue(rl.check("a", "write"))
+        self.assertFalse(rl.check("a", "write"))
+        self.assertTrue(rl.check("a", "read"))
+        self.assertTrue(rl.check("a", "read"))
+        self.assertFalse(rl.check("a", "read"))
+
+    def test_build_rate_limiter_from_env_can_disable_limiter(self) -> None:
+        self.assertIsNone(build_rate_limiter_from_env({"IVS_RATE_LIMIT_ENABLED": "false"}))
+
+    def test_build_rate_limiter_from_env_rejects_invalid_values(self) -> None:
+        with self.assertRaises(ValueError):
+            build_rate_limiter_from_env({"IVS_RATE_LIMIT_WRITE_CAPACITY": "nope"})
 
 
 class HttpRateLimitTest(unittest.TestCase):

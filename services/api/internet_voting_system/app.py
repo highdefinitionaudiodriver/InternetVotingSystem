@@ -2,17 +2,26 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import signal
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from .rate_limit import RateLimiter
 from .repository import InMemoryRepository
 from .service import VotingService
 from .sqlite_repository import SqliteRepository
+
+
+RATE_LIMIT_ENV = {
+    "write_capacity": "IVS_RATE_LIMIT_WRITE_CAPACITY",
+    "read_capacity": "IVS_RATE_LIMIT_READ_CAPACITY",
+    "write_refill_per_sec": "IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC",
+    "read_refill_per_sec": "IVS_RATE_LIMIT_READ_REFILL_PER_SEC",
+}
 
 
 def json_bytes(data: Any) -> bytes:
@@ -247,6 +256,10 @@ def main() -> None:
     else:
         repository = InMemoryRepository()
     VotingRequestHandler.service = VotingService(repository=repository)
+    try:
+        VotingRequestHandler.rate_limiter = build_rate_limiter_from_env()
+    except ValueError as exc:
+        parser.error(str(exc))
     server = ThreadingHTTPServer((args.host, args.port), VotingRequestHandler)
     install_graceful_shutdown(server)
     print(
@@ -255,6 +268,30 @@ def main() -> None:
         flush=True,
     )
     server.serve_forever()
+
+
+def build_rate_limiter_from_env(environ: Mapping[str, str] | None = None) -> RateLimiter | None:
+    """Build the process-wide limiter from IVS_RATE_LIMIT_* environment vars."""
+    source = os.environ if environ is None else environ
+    enabled = source.get("IVS_RATE_LIMIT_ENABLED", "true").strip().lower()
+    if enabled in {"0", "false", "no", "off"}:
+        return None
+    if enabled not in {"", "1", "true", "yes", "on"}:
+        raise ValueError("IVS_RATE_LIMIT_ENABLED must be true/false")
+
+    kwargs: dict[str, float] = {}
+    for arg_name, env_name in RATE_LIMIT_ENV.items():
+        raw = source.get(env_name)
+        if raw is None or raw == "":
+            continue
+        try:
+            value = float(raw)
+        except ValueError as exc:
+            raise ValueError(f"{env_name} must be numeric") from exc
+        if value < 0:
+            raise ValueError(f"{env_name} must be zero or greater")
+        kwargs[arg_name] = value
+    return RateLimiter(**kwargs)
 
 
 def install_graceful_shutdown(server: ThreadingHTTPServer) -> None:

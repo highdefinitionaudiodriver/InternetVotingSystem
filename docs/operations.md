@@ -1,6 +1,6 @@
 # Operations Runbook
 
-最終更新: 2026-05-17 (Claude Code セッション 5)
+最終更新: 2026-05-18 (Codex セッション 15)
 
 このドキュメントは、本プロトタイプを開発/評価環境で運用する際の手順をまとめます。本番運用は別途、暗号差し替え・PostgreSQL化・JPKI実接続・WORM監査基盤が必要です。
 
@@ -32,7 +32,25 @@ PostgresRepository は `psycopg` が import できない環境では起動時に
 
 ---
 
-## 2. メトリクス取得
+## 2. レート制限
+
+APIサーバーはIP単位の in-process token bucket を使います。デフォルトは write 30 burst + 5 req/sec、read 120 burst + 30 req/sec です。
+
+環境変数で調整できます。
+
+| 変数 | デフォルト | 説明 |
+|---|---:|---|
+| `IVS_RATE_LIMIT_ENABLED` | `true` | `false` / `0` / `off` で無効化 |
+| `IVS_RATE_LIMIT_WRITE_CAPACITY` | `30` | POST系エンドポイントのburst上限 |
+| `IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC` | `5` | POST系エンドポイントの秒間補充量 |
+| `IVS_RATE_LIMIT_READ_CAPACITY` | `120` | GET系エンドポイントのburst上限 |
+| `IVS_RATE_LIMIT_READ_REFILL_PER_SEC` | `30` | GET系エンドポイントの秒間補充量 |
+
+Helm chartでは `values.yaml` の `rateLimit` セクションから同じ値をDeployment環境変数へ渡します。
+
+---
+
+## 3. メトリクス取得
 
 `/metrics` は2つの形式に対応します。
 
@@ -83,7 +101,7 @@ scrape_configs:
 
 ---
 
-## 3. 監査ログ整合性チェック
+## 4. 監査ログ整合性チェック
 
 ```bash
 curl -s http://127.0.0.1:8787/audit-log/verify | jq
@@ -101,7 +119,7 @@ cron で定期実行してアラートに繋げる場合の例:
 
 ---
 
-## 4. graceful shutdown
+## 5. graceful shutdown
 
 API サーバは SIGINT / SIGTERM / SIGBREAK を捕捉して `ThreadingHTTPServer.shutdown()` を呼びます。`docker stop` が送る SIGTERM、Kubernetes の `preStop` が送る SIGTERM、Ctrl+C の SIGINT、いずれも同じ経路で接続を排出してから終了します。
 
@@ -109,7 +127,7 @@ API サーバは SIGINT / SIGTERM / SIGBREAK を捕捉して `ThreadingHTTPServe
 
 ---
 
-## 5. スモーク検証
+## 6. スモーク検証
 
 API 起動後、別ターミナルから:
 

@@ -27,14 +27,24 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             {{- include "ivs.api.args" . | nindent 12 }}
-          {{- if eq .Values.storage.backend "postgres" }}
           env:
+            - name: IVS_RATE_LIMIT_ENABLED
+              value: {{ .Values.rateLimit.enabled | quote }}
+            - name: IVS_RATE_LIMIT_WRITE_CAPACITY
+              value: {{ .Values.rateLimit.writeCapacity | quote }}
+            - name: IVS_RATE_LIMIT_READ_CAPACITY
+              value: {{ .Values.rateLimit.readCapacity | quote }}
+            - name: IVS_RATE_LIMIT_WRITE_REFILL_PER_SEC
+              value: {{ .Values.rateLimit.writeRefillPerSecond | quote }}
+            - name: IVS_RATE_LIMIT_READ_REFILL_PER_SEC
+              value: {{ .Values.rateLimit.readRefillPerSecond | quote }}
+          {{ if eq .Values.storage.backend "postgres" }}
             - name: IVS_PG_DSN
               valueFrom:
                 secretKeyRef:
                   name: {{ if .Values.storage.postgres.existingSecret }}{{ .Values.storage.postgres.existingSecret }}{{ else }}{{ include "ivs.fullname" . }}-pg{{ end }}
                   key: dsn
-          {{- end }}
+          {{ end }}
           ports:
             - name: http
               containerPort: 8787
