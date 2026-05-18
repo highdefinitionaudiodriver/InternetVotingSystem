@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .rate_limit import RateLimiter
 from .repository import InMemoryRepository
 from .service import VotingService
 from .sqlite_repository import SqliteRepository
@@ -21,9 +22,35 @@ def json_bytes(data: Any) -> bytes:
 class VotingRequestHandler(BaseHTTPRequestHandler):
     # Re-assigned in main() once the storage backend is chosen.
     service: VotingService = VotingService()
+    # Shared limiter; replaced in main() if the operator wants different
+    # capacities. Setting this to None disables rate limiting entirely
+    # (handy for tests that intentionally hammer the API).
+    rate_limiter: RateLimiter | None = RateLimiter()
 
     def log_message(self, format: str, *args: Any) -> None:
         return
+
+    def _client_ip(self) -> str:
+        """Best-effort client IP. Honours ``X-Forwarded-For`` if present.
+
+        In production the reverse proxy / CDN must set ``X-Forwarded-For`` and
+        strip any client-supplied value, otherwise an attacker can rotate
+        the header to bypass the limiter.
+        """
+        forwarded = self.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return self.client_address[0]
+
+    def _enforce_rate_limit(self, group: str) -> bool:
+        """Return True if the request is allowed. Sends 429 if not."""
+        limiter = type(self).rate_limiter
+        if limiter is None:
+            return True
+        if limiter.check(self._client_ip(), group):
+            return True
+        self._send_error(HTTPStatus.TOO_MANY_REQUESTS, "rate_limited", "rate limit exceeded")
+        return False
 
     def _send_error(self, status: HTTPStatus, code: str, message: str) -> None:
         """Standardised error envelope. See docs/api/openapi.yaml#ApiError."""
@@ -76,6 +103,11 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed_url = urlparse(self.path)
         path = parsed_url.path.strip("/").split("/")
+        query = parse_qs(parsed_url.query or "")
+        # /health and /metrics are exempt from rate limiting so that
+        # health probes and Prometheus scrapers never trigger a 429.
+        if path not in (["health"], ["metrics"]) and not self._enforce_rate_limit("read"):
+            return
         try:
             if path == ["health"]:
                 self._send_json(HTTPStatus.OK, {"status": "ok"})
@@ -99,9 +131,22 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.OK, self.service.verify_receipt(path[1], path[3]))
                 return
             if path == ["audit-log"]:
+                # Pagination: ?after=<log_id>&limit=<n>. The default limit
+                # caps the response size to keep `/audit-log` cheap even when
+                # the chain reaches millions of entries.
+                after = int(query.get("after", ["0"])[0])
+                limit = int(query.get("limit", ["200"])[0])
+                if limit < 1 or limit > 1000:
+                    raise ValueError("limit must be between 1 and 1000")
+                all_entries = self.service.repository.audit_logs
+                page = [e for e in all_entries if e.log_id > after][:limit]
                 self._send_json(
                     HTTPStatus.OK,
-                    {"audit_log": [entry.to_dict() for entry in self.service.repository.audit_logs]},
+                    {
+                        "audit_log": [entry.to_dict() for entry in page],
+                        "next_after": page[-1].log_id if page else after,
+                        "has_more": bool(page) and page[-1].log_id < all_entries[-1].log_id,
+                    },
                 )
                 return
             if path == ["audit-log", "verify"]:
@@ -125,10 +170,15 @@ class VotingRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path.strip("/").split("/")
+        if not self._enforce_rate_limit("write"):
+            return
         try:
             body = self._read_json()
             if path == ["elections"]:
                 self._send_json(HTTPStatus.CREATED, self.service.repository.create_election(body).to_dict())
+                return
+            if len(path) == 3 and path[0] == "elections" and path[2] == "close":
+                self._send_json(HTTPStatus.OK, self.service.close_election(path[1]))
                 return
             if len(path) == 3 and path[0] == "elections" and path[2] == "authenticate":
                 self._send_json(

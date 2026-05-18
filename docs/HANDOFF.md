@@ -1,6 +1,6 @@
 # Claude Code / Codex 引き継ぎ資料
 
-最終更新: 2026-05-18 (Claude Code セッション 6 終了時)
+最終更新: 2026-05-18 (Claude Code セッション 7 終了時)
 
 ## 作業場所
 
@@ -58,7 +58,9 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `test_metrics_and_shutdown.py` （Claude Code セッション 4 で追加、4件）
   - `test_prometheus_and_postgres.py` （Claude Code セッション 5 で追加、5件）
   - `test_postgres_integration.py` （Claude Code セッション 6 で追加、4件。`IVS_TEST_PG_DSN` 設定時のみ実行）
-  - 計40件（DSN未設定では postgres 4件スキップ、残り36件すべてパス）
+  - `test_lifecycle_ratelimit_pagination.py` （Claude Code セッション 7 で追加、9件）
+  - `test_backup_sqlite_tool.py` （Claude Code セッション 7 で追加、2件）
+  - 計51件（DSN未設定では postgres 4件スキップ、残り47件すべてパス）
 - スモークチェック: `tools/smoke_check.py` （Codex セッション10で追加）
   - 起動済みAPIに対して health、投票フロー、受領証検証、監査ログ整合性を単発確認
   - CIの構文チェック対象にも追加済み
@@ -116,6 +118,27 @@ G:\マイドライブ\claudecode\InternetVotingSystem
   - `--dsn` 必須、`--drop` で `DROP SCHEMA voting CASCADE` 後に再適用
   - 冪等。`postgresql_schema.sql` を読み込み autocommit モードで実行
 - OpenAPI: `/metrics` に `text/plain` レスポンスと `?format=prometheus` query パラメータを追加（Claude Code セッション 6）
+- レート制限: `rate_limit.RateLimiter`（Claude Code セッション 7 で追加）
+  - IP単位のtoken bucket。write/read別の容量・refill。デフォルトは write 30 burst+5/s、read 120 burst+30/s
+  - `app.py` で全 GET（health/metrics除く）/全 POST に適用
+  - `X-Forwarded-For` を honor（CDN/WAFがクライアント側値を必ず上書きする前提）
+  - `429 rate_limited` を返却、エラー envelope `{error:{code,message}}`
+  - クラス属性 `VotingRequestHandler.rate_limiter = None` で無効化可能（テスト用）
+- 選挙クローズエンドポイント: `POST /elections/{id}/close` （Claude Code セッション 7 で追加）
+  - `Election.status` を `closed` に遷移、以後 authenticate / issue-token / submit-ballot は `not open` エラー
+  - 監査ログに `election_closed` イベントを記録
+  - Repository プロトコルに `set_election_status()` を追加し、memory/SQLite/Postgres 全実装に展開
+- 監査ログのページング: `GET /audit-log?after=<log_id>&limit=<n>` （Claude Code セッション 7 で追加）
+  - `limit` 1〜1000（デフォルト200）、`next_after` と `has_more` を返却
+  - 1000万エントリ規模でも leveraged-cost を抑える設計
+- SQLiteオンライン・バックアップツール: `tools/backup_sqlite.py` （Claude Code セッション 7 で追加）
+  - `Connection.backup()` API を用い、稼働中DBに対し書き込みを止めずに一貫スナップショット取得
+  - 取得後 `PRAGMA integrity_check` で検証、失敗時 exit code 2
+- Helm chart: `deploy/helm/internet-voting-system/` （Claude Code セッション 7 で追加）
+  - API/Web Deployment + Service、SQLite用PVC、Postgres用Secret、PodDisruptionBudget
+  - `storage.backend` 切替で memory/sqlite/postgres を選択可能
+  - SQLite時は強制的に replicaCount=1（PVC競合回避）
+  - Postgres時に dsn 未指定なら `helm template` が `fail` で停止
 - OpenAPIプライバシーlint: `tools/lint_openapi_privacy.py` （Codex セッション4で追加）
   - OpenAPIのフィールド名・スキーマ名・パラメータ名に `mynumber` / `individual_number` / `個人番号` 等が混入したら失敗
   - 説明文に「禁止事項」として出る語は許容し、API契約上の名前だけを検査する
@@ -399,6 +422,9 @@ Codex セッション4で `tools/lint_openapi_privacy.py` を追加済み。Open
 15. **クライアント側 JPKI 実接続**: Web版は公的個人認証JPKIブラウザ拡張、モバイル版はNFC SDK を組み込み、`certificate_serial` 直接入力フォームを置き換える。
 16. **負荷試験のPostgres版**: `tools/loadtest.py` を `--storage postgres` で起動した API に対して実行し、結果を `docs/performance.md` に追記。FOR UPDATE による直列化の影響を測定。
 17. **WAF/CDNのIaCサンプル**: `docs/infrastructure/` を作成し、Cloudflare or AWS のWAFルール（レート制限、CAPTCHA、Botblocker）と CDN 配信構成を Terraform で例示。
+18. **Helmチャートの helm lint / helm template CI**: `deploy/helm/internet-voting-system/` を `helm/chart-testing-action` で検証するCIジョブを追加。
+19. **本番暗号への置き換え**: `DemoCryptoSuite` インターフェースを保ったまま、`blind-rsa-signatures` / ristretto255 ベース実装に差し替える（積み残し最重要）。
+20. **レート制限の分散化**: 現状は in-process token bucket なので APIインスタンス間で共有されない。Redisバックエンド `RedisRateLimiter` を追加し、`RateLimiter` プロトコルでスイッチ可能にする。
 
 ## 既知の制約
 

@@ -1,0 +1,73 @@
+# Default values for the InternetVotingSystem prototype chart.
+#
+# Storage selection
+# -----------------
+# storage.backend: memory | sqlite | postgres
+#   memory  - volatile, demo only. No volume mounts.
+#   sqlite  - durable, single-replica. Requires a ReadWriteOnce PVC.
+#   postgres- multi-replica. Requires `storage.postgres.dsn` to be set,
+#             either inline or via existingSecret.
+
+storage:
+  backend: memory
+  sqlite:
+    pvcSize: 5Gi
+    storageClass: ""
+  postgres:
+    # Inline DSN (overridden by existingSecret if both are set).
+    dsn: ""
+    # Reference a pre-existing secret containing key `dsn`.
+    existingSecret: ""
+
+image:
+  repository: ghcr.io/highdefinitionaudiodriver/internet-voting-system-api
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+web:
+  image:
+    repository: ghcr.io/highdefinitionaudiodriver/internet-voting-system-web
+    tag: "0.2.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+
+replicaCount: 2
+
+resources:
+  api:
+    requests: { cpu: "100m", memory: "128Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  web:
+    requests: { cpu: "20m",  memory: "32Mi" }
+    limits:   { cpu: "100m", memory: "128Mi" }
+
+service:
+  type: ClusterIP
+  port: 8787
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  apiHost: api.voting.example.com
+  webHost: voting.example.com
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Liveness/readiness probes hit /health (exempt from rate limiting).
+probes:
+  liveness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    initialDelaySeconds: 2
+    periodSeconds: 5
+
+pdb:
+  enabled: true
+  minAvailable: 1

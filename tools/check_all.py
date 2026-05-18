@@ -38,6 +38,7 @@ def main() -> None:
             "tools/lint_openapi_privacy.py",
             "tools/check_all.py",
             "tools/init_postgres.py",
+            "tools/backup_sqlite.py",
         ],
     )
     run_step(

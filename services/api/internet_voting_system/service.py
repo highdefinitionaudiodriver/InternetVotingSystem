@@ -93,6 +93,20 @@ class VotingService:
         )
         return ballot.public_record()
 
+    def close_election(self, election_id: str) -> dict[str, Any]:
+        """Transition an election from ``open`` to ``closed``.
+
+        Subsequent ``authenticate_voter``, ``issue_token``, and
+        ``submit_ballot`` calls will be rejected because :class:`Election`
+        only marks itself ``is_open`` while ``status == "open"`` and the
+        current time is within ``[starts_at, ends_at]``. This mirrors
+        Article 55 of the Public Office Election Act (closing the ballot
+        box at the end of the polling period).
+        """
+        election = self.repository.set_election_status(election_id, "closed")
+        self.repository.append_audit("admin", "election_closed", {"election_id": election_id})
+        return election.to_dict()
+
     def public_board(self, election_id: str) -> dict[str, Any]:
         self.repository.get_election(election_id)
         return {

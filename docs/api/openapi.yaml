@@ -69,6 +69,29 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /elections/{electionId}/close:
+    post:
+      summary: Close an election (status transitions to 'closed')
+      description: |
+        After closing, authenticate / issue-token / submit-ballot calls for
+        this election return 400 because the election is no longer open. The
+        bulletin board, tally, receipts and audit log remain readable.
+
+        Models the public-office election act's Article 55 ballot-box closure.
+      parameters:
+        - $ref: "#/components/parameters/ElectionId"
+      responses:
+        "200":
+          description: Closed election object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
   /elections/{electionId}/authenticate:
     post:
       summary: Verify JPKI certificate and voter eligibility
@@ -214,13 +237,35 @@ paths:
   /audit-log:
     get:
       summary: Hash-chained audit log
+      description: |
+        Paginated audit log. Use `after` (the previous `next_after` value) and
+        `limit` (1-1000, default 200) to walk the chain. Designed to remain
+        cheap even when total entries reach the millions.
+      parameters:
+        - name: after
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
       responses:
         "200":
-          description: Audit log entries
+          description: Audit log page
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuditLog"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /audit-log/verify:
     get:
@@ -293,6 +338,12 @@ components:
             $ref: "#/components/schemas/ApiError"
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    RateLimited:
+      description: Rate limit exceeded (token bucket per client IP)
       content:
         application/json:
           schema:
@@ -495,12 +546,18 @@ components:
 
     AuditLog:
       type: object
-      required: [audit_log]
+      required: [audit_log, next_after, has_more]
       properties:
         audit_log:
           type: array
           items:
             $ref: "#/components/schemas/AuditLogEntry"
+        next_after:
+          type: integer
+          minimum: 0
+          description: Pass this back as the `after` query param to fetch the next page.
+        has_more:
+          type: boolean
 
     AuditChainVerification:
       type: object

@@ -79,6 +79,14 @@ class InMemoryRepository:
             self.append_audit("admin", "election_created", {"election_id": election.election_id})
         return election
 
+    def set_election_status(self, election_id: str, status: str) -> Election:
+        if status not in ("open", "closed"):
+            raise ValueError("status must be 'open' or 'closed'")
+        with self._lock:
+            election = self.get_election(election_id)
+            election.status = status
+            return election
+
     def get_or_create_voter_status(self, election_id: str, voter_hash: str) -> VoterStatus:
         key = (election_id, voter_hash)
         with self._lock:

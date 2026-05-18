@@ -252,6 +252,21 @@ class SqliteRepository:
             self.append_audit("admin", "election_created", {"election_id": election_id})
             return self.get_election(election_id)
 
+    def set_election_status(self, election_id: str, status: str) -> Election:
+        if status not in ("open", "closed"):
+            raise ValueError("status must be 'open' or 'closed'")
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cur = self._conn.execute(
+                "UPDATE elections SET status = ? WHERE election_id = ?",
+                (status, election_id),
+            )
+            if cur.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                raise KeyError("election not found")
+            self._conn.execute("COMMIT")
+            return self.get_election(election_id)
+
     # ------------------------------------------------------------------
     # Voter status
     # ------------------------------------------------------------------

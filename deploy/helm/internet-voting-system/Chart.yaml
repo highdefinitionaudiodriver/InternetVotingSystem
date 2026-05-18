@@ -1,0 +1,16 @@
+apiVersion: v2
+name: internet-voting-system
+description: |
+  Kubernetes Helm chart for the InternetVotingSystem prototype API and
+  static web client. Renders two Deployments, two Services, a Secret-driven
+  config for the Postgres DSN (optional), and a PodDisruptionBudget for
+  the API. Designed for prototype / staging clusters only — production
+  rollouts must add NetworkPolicies and PodSecurityAdmission profiles.
+type: application
+version: 0.1.0
+appVersion: "0.2.0"
+keywords:
+  - voting
+  - jpki
+  - mynumber-card
+home: https://github.com/highdefinitionaudiodriver/InternetVotingSystem

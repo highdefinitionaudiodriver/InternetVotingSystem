@@ -215,6 +215,20 @@ class PostgresRepository:
         self.append_audit("admin", "election_created", {"election_id": election_id})
         return self.get_election(election_id)
 
+    def set_election_status(self, election_id: str, status: str) -> Election:
+        if status not in ("open", "closed"):
+            raise ValueError("status must be 'open' or 'closed'")
+        with self._lock, self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE elections SET status = %s WHERE election_id = %s",
+                (status, election_id),
+            )
+            if cur.rowcount == 0:
+                self._conn.rollback()
+                raise KeyError("election not found")
+            self._conn.commit()
+        return self.get_election(election_id)
+
     # ------------------------------------------------------------------
     # Voter status
     # ------------------------------------------------------------------
