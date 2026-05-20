@@ -209,7 +209,7 @@ resource "aws_iam_role_policy" "firehose_s3" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
-  count       = var.create_distribution ? 1 : 0
+  count = var.create_distribution ? 1 : 0
   # WAFv2 requires the stream name to begin with "aws-waf-logs-".
   name        = "aws-waf-logs-${var.name_prefix}"
   destination = "extended_s3"
