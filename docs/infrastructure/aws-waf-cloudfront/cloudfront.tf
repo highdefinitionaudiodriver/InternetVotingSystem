@@ -215,12 +215,12 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
   destination = "extended_s3"
 
   extended_s3_configuration {
-    role_arn        = aws_iam_role.firehose[0].arn
-    bucket_arn      = aws_s3_bucket.waf_logs[0].arn
-    buffering_size  = 5
-    buffering_interval = 60
-    compression_format = "GZIP"
-    prefix             = "waf/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
+    role_arn            = aws_iam_role.firehose[0].arn
+    bucket_arn          = aws_s3_bucket.waf_logs[0].arn
+    buffering_size      = 5
+    buffering_interval  = 60
+    compression_format  = "GZIP"
+    prefix              = "waf/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
     error_output_prefix = "errors/!{firehose:error-output-type}/"
   }
 
