@@ -148,7 +148,7 @@ jobs:
 
       - name: terraform fmt -check
         working-directory: docs/infrastructure/aws-waf-cloudfront
-        run: terraform fmt -diff -recursive && terraform fmt -check -recursive
+        run: terraform fmt -check -recursive
 
       - name: terraform init -backend=false
         working-directory: docs/infrastructure/aws-waf-cloudfront
