@@ -56,8 +56,8 @@ resource "aws_cloudfront_distribution" "api" {
   price_class     = "PriceClass_200"
 
   origin {
-    origin_id                = "api"
-    domain_name              = var.api_origin_domain_name
+    origin_id   = "api"
+    domain_name = var.api_origin_domain_name
     custom_origin_config {
       http_port              = 80
       https_port             = 443
