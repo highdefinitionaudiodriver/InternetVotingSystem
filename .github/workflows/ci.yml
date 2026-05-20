@@ -148,7 +148,9 @@ jobs:
 
       - name: terraform fmt -check
         working-directory: docs/infrastructure/aws-waf-cloudfront
-        run: terraform fmt -check -recursive
+        run: |
+          terraform fmt -recursive
+          git diff --exit-code . || (echo "=== TERRAFORM FMT DIFF ===" && git diff . && exit 1)
 
       - name: terraform init -backend=false
         working-directory: docs/infrastructure/aws-waf-cloudfront
