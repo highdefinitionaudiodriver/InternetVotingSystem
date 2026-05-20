@@ -244,4 +244,9 @@ resource "aws_wafv2_web_acl_logging_configuration" "this" {
       name = "cookie"
     }
   }
+  redacted_fields {
+    single_header {
+      name = "certificate_serial"
+    }
+  }
 }
