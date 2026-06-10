@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Internet Voting System — マイナンバーカード活用 電子投票の参考実装</title>
+<meta name="description" content="マイナンバーカードで本人確認しつつ匿名性を担保する電子投票の設計・実装パターンの参考実装（プロトタイプ）。JPKI・ブラインド署名・ZKP・ミックスネット・閾値復号をモジュール分離してOSSで可視化。本番投票には使用できません。">
+<style>
+:root {
+  --brand: #3730a3; --brand2: #6d28d9; --accent: #0e9f6e; --danger: #c01c28;
+  --bg: #f5f5fa; --card: #fff; --ink: #1e1b2e; --muted: #5b5872; --line: #e0ddef;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+.hero { background: linear-gradient(135deg, var(--brand), var(--brand2)); color: #fff; padding: 64px 20px 56px; text-align: center; }
+.hero .badge { display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 4px 14px; font-size: .8rem; margin-bottom: 18px; letter-spacing: .05em; }
+.hero h1 { margin: 0 0 10px; font-size: clamp(1.6rem,5vw,2.5rem); }
+.hero p.lead { margin: 0 auto; max-width: 660px; font-size: clamp(.95rem,2.5vw,1.1rem); opacity: .95; }
+main { max-width: 880px; margin: 0 auto; padding: 16px 16px 64px; }
+section { margin-top: 48px; }
+h2 { font-size: 1.4rem; border-left: 5px solid var(--brand); padding-left: 12px; margin-bottom: 6px; }
+.section-sub { color: var(--muted); margin-top: 0; font-size: .92rem; }
+.warn { background: #fdf1f2; border: 1px solid #efc4c8; border-radius: 12px; padding: 20px 22px; margin-top: 18px; }
+.warn h3 { margin: 0 0 10px; color: var(--danger); font-size: 1.05rem; }
+.warn ul { margin: 0; padding-left: 1.3em; }
+.warn li { margin: 6px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 14px; margin-top: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.card h3 { margin: 0 0 6px; font-size: 1rem; }
+.card p { margin: 0; font-size: .88rem; color: var(--muted); }
+.modules { background: linear-gradient(135deg, #232058, var(--brand)); color: #fff; border-radius: 16px; padding: 28px 26px; margin-top: 20px; }
+.modules h3 { margin: 0 0 8px; font-size: 1.15rem; }
+.modules p { margin: 6px 0; font-size: .92rem; opacity: .95; }
+.modules .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.modules .chips span { border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 3px 12px; font-size: .82rem; }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: .9rem; }
+th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+th { background: #edebf7; }
+.tech { font-size: .9rem; }
+.tech code { background: #e9e7f3; border-radius: 6px; padding: 1px 7px; font-size: .83rem; }
+footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 16px 40px; text-align: center; color: var(--muted); font-size: .82rem; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">オープンソース参考実装（MIT）・プロトタイプ</span>
+  <h1>Internet Voting System</h1>
+  <p class="lead">マイナンバーカードで本人確認しつつ、匿名性を担保する——<br>
+  電子投票の設計・実装パターンを、暗号要素ごとにモジュール分離して可視化した参考実装です。</p>
+</div>
+
+<main>
+
+<section>
+  <h2>まず最初に</h2>
+  <div class="warn">
+    <h3>⚠️ 本番投票には絶対に使用しないでください</h3>
+    <ul>
+      <li>これは<strong>設計検証のためのプロトタイプ</strong>です。現段階の暗号要素は、本番実装の境界を意識した<strong>標準ライブラリのみのデモ用アダプタ</strong>で動いています。</li>
+      <li>商用電子投票プラットフォームの多くは中身がブラックボックスです。本ツールは <strong>OSSとして各暗号要素を独立に確認できる</strong>ことを目的としており、議論・査読の土台になることを目指しています。</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>暗号モジュールの分離</h2>
+  <p class="section-sub">「本人確認できるのに、誰に投票したかは誰にも分からない」を成立させる要素を、差し替え可能な境界で切り出しています。</p>
+  <div class="modules">
+    <h3>本番実装の境界を意識したモジュール構成</h3>
+    <p>各モジュールは独立して検証・置換できます。本番化の際は、この境界のままデモ用アダプタを実運用級の暗号実装に差し替える設計です。</p>
+    <div class="chips">
+      <span>JPKI（マイナンバーカード本人確認）</span>
+      <span>ブラインド署名（投票資格と票の分離）</span>
+      <span>ZKP（ゼロ知識証明）</span>
+      <span>ミックスネット（経路の匿名化）</span>
+      <span>閾値復号（単独開票の防止）</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>同梱物</h2>
+  <div class="grid">
+    <div class="card"><h3>投票APIサーバー</h3><p>Python 3.10+・標準ライブラリのみで起動（pip install不要）。メモリ／SQLiteストレージ切替。</p></div>
+    <div class="card"><h3>Webクライアント</h3><p>ブラウザで動く簡易投票クライアント。受領証検証パネル・監査ログ整合性チェックパネル付き。</p></div>
+    <div class="card"><h3>監査者向けSDK</h3><p>Python SDK（stdlibのみ）とTypeScript/ESM SDK。観察者・監査者が独立に検証できる。</p></div>
+    <div class="card"><h3>設計書・API定義</h3><p>システム設計書（DESIGN.md／Excel版）とOpenAPI定義、WAF/CDN等のIaCサンプル、Helm chart。</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>想定ユースケース</h2>
+  <table>
+    <tr><th>用途</th><th>形態</th></tr>
+    <tr><td>設計参考・学術研究・自治体PoC評価</td><td>無料（MIT）</td></tr>
+    <tr><td>議員・自治体向けデモ実演、設計レビュー受託</td><td>応相談</td></tr>
+    <tr><td>本番実装に向けた暗号モジュール置換・監査</td><td>個別見積もり</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>技術構成</h2>
+  <p class="tech">
+    API: <code>Python 3.10+</code>（標準ライブラリのみ・Docker対応） ／ クライアント: ブラウザ（バニラJS） ／
+    SDK: <code>Python</code>・<code>TypeScript</code> ／ デプロイ: <code>docker compose</code>・<code>Helm</code>。
+    設計書・OpenAPI・周辺インフラIaCを同梱。
+  </p>
+</section>
+
+</main>
+
+<footer>
+  <p>本システムは設計検証のためのプロトタイプであり、実際の選挙・投票には使用できません。</p>
+  <p>MIT License — ソースコードリポジトリは公開準備中です。</p>
+</footer>
+
+</body>
+</html>
