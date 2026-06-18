@@ -1,20 +1,44 @@
 :root {
+  /* デジタル庁デザインシステム(DADS)トークンへ写像。
+     実値は ./dads-tokens.css（公式 @digital-go-jp/design-tokens, MIT）。
+     var() の第2引数は読み込み失敗時のフォールバック（従来値）。 */
+  --primary:       var(--color-key-800, #0031d8);              /* 主要操作（プライマリボタン） */
+  --primary-hover: var(--color-key-900, #0017c1);              /* hover/押下 */
+  --danger:        var(--color-semantic-error-1, #ec0000);     /* エラー */
+  --warning:       var(--color-semantic-warning-orange-1, #fb5b01);
+  --success:       var(--color-semantic-success-1, #259d63);   /* 成功/OK */
+  --bg:            var(--color-neutral-solid-gray-50, #f4f6f9);
+  --card:          var(--color-neutral-white, #ffffff);
+  --ink:           var(--color-neutral-solid-gray-900, #1c2430);  /* 本文文字色 */
+  --muted:         var(--color-neutral-solid-gray-700, #4d4d4d);  /* 補助テキスト（AA 4.5:1確保） */
+  --line:          var(--color-neutral-solid-gray-200, #dde3ea);  /* 区切り/装飾境界 */
+  --field-border:  var(--color-neutral-solid-gray-700, #4d4d4d);  /* フォーム境界（非テキスト 3:1以上） */
+  --focus:         var(--color-key-800, #0031d8);                 /* フォーカスリング */
+  --font-family-sans: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', system-ui, sans-serif;
+  --font-family-mono: 'Noto Sans Mono', 'Consolas', 'Courier New', monospace;
   color-scheme: light;
-  font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
-  background: #f4f7f2;
-  color: #1b2430;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
+  font-family: var(--font-family-sans);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -34,12 +58,12 @@ input {
   justify-content: space-between;
   gap: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #cbd8c3;
+  border-bottom: 1px solid var(--line, #dde3ea);
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #55724b;
+  color: var(--muted, #4d4d4d);
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
@@ -66,18 +90,21 @@ h2 {
 label {
   display: grid;
   gap: 6px;
-  color: #4a5563;
+  color: var(--muted, #4d4d4d);
   font-size: 13px;
   font-weight: 700;
 }
 
-input {
+input,
+select,
+textarea {
   width: 100%;
-  border: 1px solid #b8c6b0;
+  min-height: 44px;
+  border: 1px solid var(--field-border, #4d4d4d);
   border-radius: 6px;
   padding: 10px 12px;
-  background: #fff;
-  color: #1b2430;
+  background: var(--card, #ffffff);
+  color: var(--ink, #1c2430);
 }
 
 .grid {
@@ -92,10 +119,10 @@ input {
   gap: 14px;
   align-content: start;
   padding: 18px;
-  border: 1px solid #d7dfd2;
+  border: 1px solid var(--line, #dde3ea);
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 22px rgb(34 61 28 / 8%);
+  background: var(--card, #ffffff);
+  box-shadow: var(--elevation-1, 0 2px 8px rgb(0 0 0 / 8%));
 }
 
 .span {
@@ -125,24 +152,41 @@ input {
 }
 
 button {
-  min-height: 42px;
-  border: 0;
+  min-height: 44px;
+  border: 1px solid var(--field-border, #4d4d4d);
   border-radius: 6px;
   padding: 0 16px;
-  background: #185f6f;
-  color: #fff;
-  font-weight: 800;
+  background: var(--primary, #0031d8);
+  color: var(--card, #ffffff);
+  font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:hover:not(:disabled) {
+  background: var(--primary-hover, #0017c1);
+  border-color: var(--primary-hover, #0017c1);
 }
 
 button:disabled {
-  background: #9aa8ad;
+  opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* フォーカスリング — WCAG 2.4.7 準拠（フォーカス消去禁止） */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus, #0031d8);
+  outline-offset: 2px;
 }
 
 output {
   min-height: 24px;
-  color: #28536b;
+  color: var(--ink, #1c2430);
   font-size: 14px;
   overflow-wrap: anywhere;
 }
@@ -158,23 +202,24 @@ output {
   gap: 10px;
   min-height: 48px;
   padding: 12px;
-  border: 1px solid #cfd9ca;
-  border-left: 6px solid var(--candidate-color, #185f6f);
+  border: 1px solid var(--line, #dde3ea);
+  border-left: 6px solid var(--candidate-color, var(--primary, #0031d8));
   border-radius: 6px;
   cursor: pointer;
 }
 
 .candidate input {
   width: auto;
+  min-height: auto;
 }
 
 .candidate strong {
   display: block;
-  color: #1b2430;
+  color: var(--ink, #1c2430);
 }
 
 .candidate span {
-  color: #60706a;
+  color: var(--muted, #4d4d4d);
   font-size: 13px;
 }
 
@@ -188,9 +233,9 @@ output {
   grid-template-columns: 170px 1fr;
   gap: 8px;
   padding: 10px;
-  border: 1px solid #e1e8de;
+  border: 1px solid var(--line, #dde3ea);
   border-radius: 6px;
-  background: #fbfcfa;
+  background: var(--bg, #f4f6f9);
   font-size: 13px;
 }
 
@@ -204,10 +249,10 @@ output {
   grid-template-columns: 48px 100px 1fr 96px;
   gap: 8px;
   padding: 8px;
-  border: 1px solid #e1e8de;
+  border: 1px solid var(--line, #dde3ea);
   border-radius: 6px;
-  background: #fbfcfa;
-  color: #334155;
+  background: var(--bg, #f4f6f9);
+  color: var(--ink, #1c2430);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -218,8 +263,9 @@ pre {
   overflow: auto;
   padding: 12px;
   border-radius: 6px;
-  background: #17222b;
-  color: #e8f5e9;
+  background: var(--color-neutral-solid-gray-900, #1c2430);
+  color: var(--color-neutral-white, #ffffff);
+  font-family: var(--font-family-mono);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;
@@ -227,8 +273,8 @@ pre {
 
 #receiptResult {
   min-height: 120px;
-  background: #f8faf6;
-  color: #1b2430;
+  background: var(--bg, #f4f6f9);
+  color: var(--ink, #1c2430);
 }
 
 .status {
@@ -236,8 +282,8 @@ pre {
   gap: 8px;
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #cfd9ca;
-  background: #fff;
+  border: 1px solid var(--line, #dde3ea);
+  background: var(--card, #ffffff);
   overflow-wrap: anywhere;
 }
 
@@ -247,23 +293,23 @@ pre {
 
 .status span,
 .status small {
-  font-family: Consolas, "Courier New", monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
 }
 
 .status.ok {
-  border-color: #86b57c;
-  background: #eef7ea;
+  border-color: var(--success, #259d63);
+  background: var(--color-primitive-green-50, #eef7ea);
 }
 
 .status.warning {
-  border-color: #c9a84f;
-  background: #fff8df;
+  border-color: var(--warning, #fb5b01);
+  background: var(--color-primitive-yellow-50, #fff8df);
 }
 
 .status.danger {
-  border-color: #ca7a7a;
-  background: #fff0f0;
+  border-color: var(--danger, #ec0000);
+  background: var(--color-primitive-red-50, #fff0f0);
 }
 
 .tally {
@@ -277,12 +323,12 @@ pre {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #334155;
+  color: var(--ink, #1c2430);
 }
 
 .tally-summary span {
-  color: #64748b;
-  font-family: Consolas, "Courier New", monospace;
+  color: var(--muted, #4d4d4d);
+  font-family: var(--font-family-mono);
   font-size: 12px;
 }
 
@@ -304,13 +350,13 @@ pre {
 }
 
 .tally-label strong {
-  color: #1b2430;
+  color: var(--ink, #1c2430);
   font-size: 14px;
 }
 
 .tally-label span {
-  color: #64748b;
-  font-family: Consolas, "Courier New", monospace;
+  color: var(--muted, #4d4d4d);
+  font-family: var(--font-family-mono);
   font-size: 12px;
 }
 
@@ -318,24 +364,24 @@ pre {
   height: 16px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e8eee4;
+  background: var(--line, #dde3ea);
 }
 
 .bar-fill {
   height: 100%;
   min-width: 2px;
   border-radius: 999px;
-  background: var(--candidate-color, #185f6f);
+  background: var(--candidate-color, var(--primary, #0031d8));
 }
 
 .vote-count {
   text-align: right;
-  color: #1b2430;
+  color: var(--ink, #1c2430);
 }
 
 .hint {
   margin: 0;
-  color: #4a5563;
+  color: var(--muted, #4d4d4d);
   font-size: 12px;
 }
 
@@ -372,5 +418,14 @@ pre {
 
   .vote-count {
     text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
