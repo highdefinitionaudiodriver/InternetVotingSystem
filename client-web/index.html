@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="app">
+    <a class="skip-link" href="#main">本文へスキップ</a>
+    <main class="app" id="main" tabindex="-1">
       <section class="workspace" aria-label="投票">
         <header class="topbar">
           <div>
@@ -27,21 +28,21 @@
             <h2>1. 本人確認</h2>
             <label>
               証明書シリアル
-              <input id="certificateSerial" value="CERT-DEMO-000001" autocomplete="off" />
+              <input id="certificateSerial" value="CERT-DEMO-000001" autocomplete="off" required aria-required="true" />
             </label>
             <label>
               生年月日
-              <input id="birthdate" type="date" value="1980-01-01" />
+              <input id="birthdate" type="date" value="1980-01-01" required aria-required="true" />
             </label>
             <button id="authButton">認証</button>
-            <output id="authStatus">未認証</output>
+            <output id="authStatus" role="status" aria-live="polite">未認証</output>
           </section>
 
           <section class="panel">
             <h2>2. 候補者選択</h2>
-            <div id="candidates" class="candidates"></div>
+            <div id="candidates" class="candidates" role="radiogroup" aria-label="候補者"></div>
             <button id="voteButton" disabled>投票する</button>
-            <output id="voteStatus">候補者を選択してください</output>
+            <output id="voteStatus" role="status" aria-live="polite">候補者を選択してください</output>
           </section>
 
           <section class="panel span">
@@ -55,7 +56,7 @@
                 <button id="refreshButton">更新</button>
               </div>
             </div>
-            <div id="bulletinBoard" class="board"></div>
+            <div id="bulletinBoard" class="board" aria-live="polite"></div>
           </section>
 
           <section class="panel span">
@@ -63,25 +64,25 @@
               <h2>集計プレビュー</h2>
               <button id="tallyButton">集計</button>
             </div>
-            <div id="tally" class="tally"></div>
+            <div id="tally" class="tally" aria-live="polite"></div>
           </section>
 
           <section class="panel">
             <h2>受領証の検証</h2>
-            <p class="hint">投票後に表示された receipt_hash を貼り付けて、公開掲示板に正しく記録されているか確認します。</p>
+            <p class="hint" id="receiptHint">投票後に表示された receipt_hash を貼り付けて、公開掲示板に正しく記録されているか確認します。</p>
             <label>
               receipt_hash
-              <input id="receiptInput" placeholder="64桁の16進数" autocomplete="off" />
+              <input id="receiptInput" placeholder="64桁の16進数" autocomplete="off" aria-describedby="receiptHint" />
             </label>
             <button id="receiptButton">検証</button>
-            <pre id="receiptResult"></pre>
+            <pre id="receiptResult" aria-live="polite"></pre>
           </section>
 
           <section class="panel">
             <h2>運用メトリクス</h2>
             <p class="hint">公開可能な集計値のみ（個別票や候補別票数は含まない）。</p>
             <button id="metricsButton">取得</button>
-            <pre id="metricsResult"></pre>
+            <pre id="metricsResult" aria-live="polite"></pre>
           </section>
 
           <section class="panel">
@@ -91,12 +92,15 @@
               <button id="auditButton">整合性チェック</button>
               <button id="auditLogButton">ログ表示</button>
             </div>
-            <pre id="auditResult"></pre>
-            <div id="auditLogTable" class="table"></div>
+            <pre id="auditResult" aria-live="polite"></pre>
+            <div id="auditLogTable" class="table" aria-live="polite"></div>
           </section>
         </div>
       </section>
     </main>
+    <footer class="site-footer" role="contentinfo">
+      <p>Internet Voting System — デモ環境</p>
+    </footer>
     <script src="./main.js"></script>
   </body>
 </html>

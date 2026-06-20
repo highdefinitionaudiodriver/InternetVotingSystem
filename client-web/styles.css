@@ -42,9 +42,44 @@ textarea {
   font: inherit;
 }
 
+/* スキップリンク — WCAG 2.4.1（ブロック回避）。フォーカス時のみ可視。 */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: var(--primary, #0031d8);
+  color: var(--card, #ffffff);
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
 .app {
   min-height: 100vh;
   padding: 28px;
+}
+
+#main:focus {
+  outline: none;
+}
+
+.site-footer {
+  max-width: 1180px;
+  margin: 24px auto 0;
+  padding: 16px 28px 28px;
+  color: var(--muted, #4d4d4d);
+  font-size: 12px;
+}
+
+.site-footer p {
+  margin: 0;
 }
 
 .workspace {

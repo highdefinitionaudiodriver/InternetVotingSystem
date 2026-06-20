@@ -5,6 +5,25 @@ let candidateCache = [];
 
 const $ = (id) => document.getElementById(id);
 
+// 通知のスクリーンリーダー告知レベルを切り替える（文言は変更しない）。
+// エラーは即時告知（assertive/alert）、それ以外は穏やか（polite/status）。
+function setLiveSeverity(el, isError) {
+  if (!el) return;
+  el.setAttribute("aria-live", isError ? "assertive" : "polite");
+  el.setAttribute("role", isError ? "alert" : "status");
+}
+
+// 通知(<output>等)へテキストを反映しつつ告知レベルを設定する。
+function announce(el, message, isError = false) {
+  if (!el) return;
+  setLiveSeverity(el, isError);
+  if ("value" in el && el.tagName === "OUTPUT") {
+    el.value = message;
+  } else {
+    el.textContent = message;
+  }
+}
+
 function api(path, options = {}) {
   const base = $("apiBase").value.replace(/\/$/, "");
   return fetch(`${base}${path}`, {
@@ -56,7 +75,7 @@ function renderCandidates(candidates) {
     input.addEventListener("change", () => {
       selectedCandidate = input.value;
       $("voteButton").disabled = !voterHash || !selectedCandidate;
-      $("voteStatus").value = "投票準備ができました";
+      announce($("voteStatus"), "投票準備ができました");
     });
   });
 }
@@ -79,7 +98,7 @@ async function loadElection() {
 }
 
 async function authenticate() {
-  $("authStatus").value = "認証中...";
+  announce($("authStatus"), "認証中...");
   const result = await api(`/elections/${electionId}/authenticate`, {
     method: "POST",
     body: JSON.stringify({
@@ -88,22 +107,22 @@ async function authenticate() {
     }),
   });
   voterHash = result.voter_hash;
-  $("authStatus").value = `認証済み / 再発行回数 ${result.revote_count}`;
+  announce($("authStatus"), `認証済み / 再発行回数 ${result.revote_count}`);
   $("voteButton").disabled = !selectedCandidate;
 }
 
 async function vote() {
-  $("voteStatus").value = "投票券発行中...";
+  announce($("voteStatus"), "投票券発行中...");
   const token = await api(`/elections/${electionId}/issue-token`, {
     method: "POST",
     body: JSON.stringify({ voter_hash: voterHash }),
   });
-  $("voteStatus").value = "暗号化中...";
+  announce($("voteStatus"), "暗号化中...");
   const prepared = await api(`/elections/${electionId}/prepare-vote`, {
     method: "POST",
     body: JSON.stringify({ candidate_id: selectedCandidate }),
   });
-  $("voteStatus").value = "送信中...";
+  announce($("voteStatus"), "送信中...");
   const receipt = await api(`/elections/${electionId}/ballots`, {
     method: "POST",
     body: JSON.stringify({
@@ -113,20 +132,29 @@ async function vote() {
     }),
   });
   lastReceiptHash = receipt.receipt_hash;
-  $("voteStatus").value = `受領証: ${receipt.receipt_hash}`;
+  announce($("voteStatus"), `受領証: ${receipt.receipt_hash}`);
   $("receiptInput").value = receipt.receipt_hash;
   await refreshBoard();
 }
 
 async function verifyReceipt() {
-  const hash = $("receiptInput").value.trim();
+  const input = $("receiptInput");
+  const resultEl = $("receiptResult");
+  const hash = input.value.trim();
   if (!hash) {
-    $("receiptResult").innerHTML = '<div class="status warning">receipt_hash を入力してください</div>';
+    input.setAttribute("aria-invalid", "true");
+    input.setAttribute("aria-describedby", "receiptHint receiptResult");
+    setLiveSeverity(resultEl, true);
+    resultEl.innerHTML = '<div class="status warning">receipt_hash を入力してください</div>';
     return;
   }
+  // 入力が有効になったので検証エラー状態を解除する。
+  input.removeAttribute("aria-invalid");
+  input.setAttribute("aria-describedby", "receiptHint");
   const result = await api(`/elections/${electionId}/receipts/${encodeURIComponent(hash)}`);
   if (!result.found) {
-    $("receiptResult").innerHTML = `
+    setLiveSeverity(resultEl, true);
+    resultEl.innerHTML = `
       <div class="status danger">
         <strong>未掲載</strong>
         <span>${escapeHtml(result.receipt_hash)}</span>
@@ -134,7 +162,8 @@ async function verifyReceipt() {
     `;
     return;
   }
-  $("receiptResult").innerHTML = `
+  setLiveSeverity(resultEl, !result.integrity_ok);
+  resultEl.innerHTML = `
     <div class="status ${result.integrity_ok ? "ok" : "danger"}">
       <strong>${result.integrity_ok ? "掲載済み / 整合性OK" : "掲載済み / 整合性NG"}</strong>
       <span>${escapeHtml(result.receipt_hash)}</span>
@@ -231,16 +260,17 @@ function renderTally(result) {
   `;
 }
 
-$("authButton").addEventListener("click", () => authenticate().catch((error) => ($("authStatus").value = error.message)));
-$("voteButton").addEventListener("click", () => vote().catch((error) => ($("voteStatus").value = error.message)));
-$("refreshButton").addEventListener("click", () => refreshBoard().catch((error) => ($("bulletinBoard").textContent = error.message)));
-$("tallyButton").addEventListener("click", () => tally().catch((error) => ($("tally").textContent = error.message)));
-$("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => ($("receiptResult").innerHTML = `<div class="status danger">${escapeHtml(error.message)}</div>`)));
-$("auditButton").addEventListener("click", () => verifyAudit().catch((error) => ($("auditResult").textContent = error.message)));
-$("auditLogButton").addEventListener("click", () => loadAuditLog().catch((error) => ($("auditLogTable").textContent = error.message)));
-$("metricsButton").addEventListener("click", () => loadMetrics().catch((error) => ($("metricsResult").textContent = error.message)));
+$("authButton").addEventListener("click", () => authenticate().catch((error) => announce($("authStatus"), error.message, true)));
+$("voteButton").addEventListener("click", () => vote().catch((error) => announce($("voteStatus"), error.message, true)));
+$("refreshButton").addEventListener("click", () => refreshBoard().catch((error) => announce($("bulletinBoard"), error.message, true)));
+$("tallyButton").addEventListener("click", () => tally().catch((error) => announce($("tally"), error.message, true)));
+$("receiptButton").addEventListener("click", () => verifyReceipt().catch((error) => {
+  setLiveSeverity($("receiptResult"), true);
+  $("receiptResult").innerHTML = `<div class="status danger">${escapeHtml(error.message)}</div>`;
+}));
+$("auditButton").addEventListener("click", () => verifyAudit().catch((error) => announce($("auditResult"), error.message, true)));
+$("auditLogButton").addEventListener("click", () => loadAuditLog().catch((error) => announce($("auditLogTable"), error.message, true)));
+$("metricsButton").addEventListener("click", () => loadMetrics().catch((error) => announce($("metricsResult"), error.message, true)));
 $("boardFilter").addEventListener("input", renderBoard);
 
-loadElection().catch((error) => {
-  $("authStatus").value = error.message;
-});
+loadElection().catch((error) => announce($("authStatus"), error.message, true));
