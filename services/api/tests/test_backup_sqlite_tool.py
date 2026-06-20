@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -19,7 +20,7 @@ class BackupSqliteToolTest(unittest.TestCase):
             src = Path(tmpdir) / "src.sqlite3"
             dest = Path(tmpdir) / "backups" / "dest.sqlite3"
 
-            with sqlite3.connect(src) as conn:
+            with closing(sqlite3.connect(src)) as conn:
                 conn.execute("CREATE TABLE ballots (id INTEGER PRIMARY KEY, payload TEXT)")
                 conn.executemany(
                     "INSERT INTO ballots (payload) VALUES (?)",
@@ -35,7 +36,7 @@ class BackupSqliteToolTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             self.assertTrue(dest.exists())
             # Destination must contain exactly the same rows.
-            with sqlite3.connect(dest) as check:
+            with closing(sqlite3.connect(dest)) as check:
                 count = check.execute("SELECT COUNT(*) FROM ballots").fetchone()[0]
             self.assertEqual(count, 100)
 

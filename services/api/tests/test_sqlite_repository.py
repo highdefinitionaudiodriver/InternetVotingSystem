@@ -19,6 +19,9 @@ class SqliteBackedServiceTest(unittest.TestCase):
         self.service = VotingService(repository=self.repository)
         self.election_id = "demo-2026"
 
+    def tearDown(self) -> None:
+        self.repository.close()
+
     def _cast_vote(self, certificate: str, candidate: str) -> dict:
         auth = self.service.authenticate_voter(self.election_id, certificate, "1980-01-01")
         token = self.service.issue_token(self.election_id, auth["voter_hash"])

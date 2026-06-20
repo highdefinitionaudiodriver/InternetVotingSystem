@@ -47,14 +47,14 @@
 
 ```powershell
 Set-Location services\api
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage memory
+python -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage memory
 ```
 
 SQLiteストレージ（永続化・単一ホスト用）:
 
 ```powershell
 Set-Location services\api
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage sqlite --sqlite-path voting.sqlite3
+python -m internet_voting_system.app --host 127.0.0.1 --port 8787 --storage sqlite --sqlite-path voting.sqlite3
 ```
 
 クライアントは `client-web/index.html` をブラウザで開き、API URLに `http://127.0.0.1:8787` を指定します。
@@ -98,14 +98,14 @@ docker compose --profile sqlite up --build
 
 ```powershell
 Set-Location services\api
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
+python -m unittest discover -s tests
 ```
 
 CI相当のチェックをまとめて実行する場合:
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\check_all.py
+# （リポジトリのルートディレクトリで実行してください）
+python tools\check_all.py
 ```
 
 ## SDK
@@ -114,7 +114,7 @@ Python SDK:
 
 ```powershell
 Set-Location clients\python
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests
+python -m unittest discover -s tests
 ```
 
 TypeScript/ESM SDK:
@@ -129,8 +129,8 @@ node --test tests\client.test.mjs
 OpenAPIのフィールド名・スキーマ名・パラメータ名に、マイナンバー取得を示す名前が混入していないか確認できます。
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_openapi_privacy.py
+# （リポジトリのルートディレクトリで実行してください）
+python tools\lint_openapi_privacy.py
 ```
 
 ## Infrastructure docs lint
@@ -138,8 +138,8 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 `docs/infrastructure/` のWAF/CDNサンプルに、必須ファイルやプライバシー保護上の設定が残っているか確認できます。
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\lint_infrastructure_docs.py
+# （リポジトリのルートディレクトリで実行してください）
+python tools\lint_infrastructure_docs.py
 ```
 
 ## スモークチェック
@@ -147,8 +147,8 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 APIサーバーを起動した状態で、単一の投票フロー、受領証検証、監査ログ整合性をまとめて確認できます。
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\smoke_check.py --base-url http://127.0.0.1:8787
+# （リポジトリのルートディレクトリで実行してください）
+python tools\smoke_check.py --base-url http://127.0.0.1:8787
 ```
 
 ## 負荷試験
@@ -156,8 +156,8 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 APIサーバーを起動した状態で、別ターミナルからフルフローの簡易負荷試験を実行できます。
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
-& 'C:\Users\highd\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\loadtest.py --voters 100 --concurrency 10 --verify-receipts
+# （リポジトリのルートディレクトリで実行してください）
+python tools\loadtest.py --voters 100 --concurrency 10 --verify-receipts
 ```
 
 標準出力に成功件数、失敗件数、スループット、レイテンシをJSONで出力します。SQLiteストレージでは書き込みが直列化されるため、並行度を上げるとロック待ちが増えます。
@@ -168,7 +168,7 @@ Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem
 `clients/python/` 配下に stdlib のみで動く薄い SDK があります。受領証検証、監査ログのページング、ハッシュチェーンのローカル再計算（サーバ側 `verify` を信用しない検証）を提供します。
 
 ```powershell
-Set-Location C:\Users\highd\Documents\Github\InternetVotingSystem\clients\python
+Set-Location clients\python
 pip install -e .
 python -c "from ivs_client import VotingClient; print(VotingClient('http://127.0.0.1:8787').health())"
 ```
@@ -211,15 +211,15 @@ docker compose -f docker-compose.test.yml down --volumes
 - 連絡先：highdefinitionaudiodriver@gmail.com
 
 <!-- CODEX-CURRENT-STATUS:START -->
-## 現状サマリ (2026-05-25)
+## 現状サマリ (2026-06-21)
 
 - 対象: Internet Voting System
-- 作業ブランチ: main
-- README更新時点の参照コミット: d267c2d ci: terraform fmt デバッグ用ワークフローを元に戻す
-- Dockerfile を同梱し、コンテナ実行・検証に展開可能。
-- docker-compose.yml を同梱し、ローカル統合検証に展開可能。
+- 作業ブランチ: main / リリース版数: v0.2.0
+- API ユニットテスト 99 件パス（Redis / Postgres 実接続テストは環境変数指定時のみ実行）。
+- Dockerfile / docker-compose.yml を同梱し、コンテナ実行・ローカル統合検証に展開可能。
 - docs ディレクトリ配下に設計・運用・補足資料を配置。
+- LICENSE（MIT）を同梱し、版数を 0.2.0 系へ統一済み。
 - 主要な確認コマンド: README 記載のセットアップ・検証コマンド
-- 次に進めるなら、README 内の利用手順と既存 docs / tests を起点に、未整備の検証手順・引き継ぎメモ・CI 化を補強する。
+- 暗号コアは `DemoCryptoSuite`（デモ用アダプタ）。本番投票には設計書記載の暗号方式・JPKI 実接続・WORM 監査基盤への置換が必須。
 <!-- CODEX-CURRENT-STATUS:END -->
 

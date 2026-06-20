@@ -15,9 +15,9 @@ class RepositoryProtocolTest(unittest.TestCase):
         self.assertIs(VotingService(repository=repository).repository, repository)
 
     def test_sqlite_repository_satisfies_protocol(self) -> None:
-        repository = SqliteRepository(":memory:")
-        self.assertIsInstance(repository, Repository)
-        self.assertIs(VotingService(repository=repository).repository, repository)
+        with SqliteRepository(":memory:") as repository:
+            self.assertIsInstance(repository, Repository)
+            self.assertIs(VotingService(repository=repository).repository, repository)
 
 
 if __name__ == "__main__":

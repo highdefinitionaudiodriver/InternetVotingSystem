@@ -474,3 +474,19 @@ class SqliteRepository:
                 from_log_id=from_log_id,
                 expected_prev_hash=expected_prev_hash,
             )
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+    def close(self) -> None:
+        """Close the underlying SQLite connection. Idempotent."""
+        with self._lock:
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None
+
+    def __enter__(self) -> "SqliteRepository":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()

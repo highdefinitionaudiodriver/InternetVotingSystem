@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ルートに `LICENSE`（MIT）を同梱（README/RELEASE_NOTES の MIT 表記と整合）。
+- `SqliteRepository` に `close()` とコンテキストマネージャ（`__enter__`/`__exit__`）を追加。
+
+### Changed
+- 版数を 0.2.0 系へ統一（`internet_voting_system.__version__`、`SECURITY.md` の Supported Versions）。
+- README のセットアップ手順からマシン固有の Python 絶対パス・作業ディレクトリ絶対パスを除去し、`python` と相対パスへ置換。
+- `release_kit/RELEASE_NOTES.md` をプレースホルダから実内容（機能一覧・動作環境・変更点）へ更新。
+
+### Fixed
+- SQLite 接続のクローズ漏れに起因するテスト時 `ResourceWarning`（unclosed database）を解消。
+
 ## [0.2.0] - 2026-06-04
 
 ### Added
