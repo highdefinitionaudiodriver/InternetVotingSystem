@@ -34,10 +34,10 @@ JPKI／ブラインド署名／ZKP／ミックスネット／閾値復号とい�
 - `SECURITY.md` を追加（脆弱性報告フロー）。
 - 商用利用・カスタマイズ依頼の連絡先を README 末尾に明記。
 
-詳細は [`CHANGELOG.md`](../CHANGELOG.md) を参照してください。
+詳細は [`CHANGELOG.md`](https://github.com/highdefinitionaudiodriver/InternetVotingSystem/blob/main/CHANGELOG.md) を参照してください。
 
 ## ライセンス / 連絡先
 
-- MIT License（同梱の [`LICENSE`](../LICENSE) を参照）
+- MIT License（同梱の [`LICENSE`](https://github.com/highdefinitionaudiodriver/InternetVotingSystem/blob/main/LICENSE) を参照）
 - https://github.com/highdefinitionaudiodriver/InternetVotingSystem
 - highdefinitionaudiodriver@gmail.com
