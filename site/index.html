@@ -40,6 +40,12 @@ th { background: #edebf7; }
 .tech { font-size: .9rem; }
 .tech code { background: #e9e7f3; border-radius: 6px; padding: 1px 7px; font-size: .83rem; }
 footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 16px 40px; text-align: center; color: var(--muted); font-size: .82rem; }
+.cta-row { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.cta { display: inline-block; border-radius: 999px; padding: 11px 24px; font-weight: 700; font-size: .95rem; text-decoration: none; }
+.cta.primary { background: #fff; color: var(--brand); }
+.cta.primary:hover { background: #f0eefb; }
+.cta.ghost { border: 1.5px solid rgba(255,255,255,.6); color: #fff; }
+.cta.ghost:hover { background: rgba(255,255,255,.12); }
 </style>
   <link rel="stylesheet" href="dads-fonts.css" />
 </head>
@@ -52,6 +58,11 @@ footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 16px
   電子投票の設計・実装パターンを、暗号要素ごとにモジュール分離して可視化した参考実装です。<br>
   <span style="font-size:.88em; opacity:.9;">「本人確認は厳格に、でも誰に投票したかは誰にも分からない」という電子投票の核心的な難しさを、
   動くコードで確かめられるようにした、研究者・自治体・開発者向けのオープンソースです。</span></p>
+  <div class="cta-row">
+    <a class="cta primary" href="./demo/">▶ ブラウザでデモを試す</a>
+    <a class="cta ghost" href="https://github.com/highdefinitionaudiodriver/InternetVotingSystem" target="_blank" rel="noopener">GitHub でソースを見る</a>
+  </div>
+  <p style="font-size:.78em; opacity:.82; margin-top:12px;">デモはバックエンド不要・ブラウザ内で完結します（サーバーに送信しません）。</p>
 </div>
 
 <main>
@@ -87,7 +98,7 @@ footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 16px
   <h2>同梱物</h2>
   <div class="grid">
     <div class="card"><h3>投票APIサーバー</h3><p>Python 3.10+・標準ライブラリのみで起動（pip install不要）。メモリ／SQLiteストレージ切替。</p></div>
-    <div class="card"><h3>Webクライアント</h3><p>ブラウザで動く簡易投票クライアント。受領証検証パネル・監査ログ整合性チェックパネル付き。</p></div>
+    <div class="card"><h3>Webクライアント</h3><p>ブラウザで動く簡易投票クライアント。受領証検証パネル・監査ログ整合性チェックパネル付き。<a href="./demo/">ブラウザ内デモはこちら →</a></p></div>
     <div class="card"><h3>監査者向けSDK</h3><p>Python SDK（stdlibのみ）とTypeScript/ESM SDK。観察者・監査者が独立に検証できる。</p></div>
     <div class="card"><h3>設計書・API定義</h3><p>システム設計書（DESIGN.md／Excel版）とOpenAPI定義、WAF/CDN等のIaCサンプル、Helm chart。</p></div>
   </div>
@@ -116,7 +127,7 @@ footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 16px
 
 <footer>
   <p>本システムは設計検証のためのプロトタイプであり、実際の選挙・投票には使用できません。</p>
-  <p>MIT License — ソースコードリポジトリは公開準備中です。</p>
+  <p>MIT License — <a href="https://github.com/highdefinitionaudiodriver/InternetVotingSystem" style="color:var(--muted)">GitHub でソースコードを公開中</a>（<a href="https://github.com/highdefinitionaudiodriver/InternetVotingSystem/releases/tag/v0.2.0" style="color:var(--muted)">v0.2.0</a>）。</p>
   <p><a href="https://civictech-portfolio.pages.dev/" style="color:var(--muted)">← CivicTech Portfolio — 他のデモ・プロダクト一覧へ</a></p>
 </footer>
 

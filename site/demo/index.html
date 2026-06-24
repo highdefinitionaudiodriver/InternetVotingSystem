@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ブラウザ内デモ — Internet Voting System</title>
+    <meta name="description" content="マイナンバーカード活用インターネット投票システムの投票フロー（本人確認→投票券発行→暗号化→受領証→公開掲示板→集計→監査ログ整合性）を、バックエンド不要のブラウザ内シミュレーションで体験できるデモです。" />
+    <link rel="stylesheet" href="../dads-fonts.css" />
+    <link rel="stylesheet" href="./dads-tokens.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      /* デモ専用の補助スタイル（共有 styles.css は変更しない） */
+      .demo-banner {
+        max-width: 1100px;
+        margin: 16px auto 0;
+        padding: 14px 18px;
+        border: 1px solid var(--color-semantic-warning-orange-1, #fb5b01);
+        background: #fff7ed;
+        border-radius: 12px;
+        color: var(--ink);
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+      .demo-banner strong { color: #b4480a; }
+      .demo-banner .links { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 14px; }
+      .demo-banner a { color: var(--primary, #0031d8); font-weight: 700; }
+      .api.demo-mode {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 12px;
+        background: var(--card);
+      }
+      .api.demo-mode .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--success, #259d63);
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">本文へスキップ</a>
+
+    <div class="demo-banner" role="note">
+      <strong>⚠️ これはブラウザ内で完結するデモです。</strong>
+      本人確認・ブラインド署名・暗号化・ZKP・監査ハッシュチェーンはすべて
+      <strong>あなたのブラウザ内のデモ用簡略実装</strong>で動いており、サーバーには何も送信されません。
+      暗号方式は本番実装の境界を示すための簡易版で、<strong>実際の選挙・投票には使用できません</strong>。
+      <div class="links">
+        <a href="../index.html">← 説明ページに戻る</a>
+        <a href="https://github.com/highdefinitionaudiodriver/InternetVotingSystem" target="_blank" rel="noopener">GitHub リポジトリ（ソースコード）</a>
+      </div>
+    </div>
+
+    <main class="app" id="main" tabindex="-1">
+      <section class="workspace" aria-label="投票">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Internet Voting System</p>
+            <h1>デモ選挙 2026</h1>
+          </div>
+          <span class="api demo-mode" title="バックエンド不要・ブラウザ内で動作">
+            <span class="dot" aria-hidden="true"></span>ブラウザ内デモ（API不要）
+          </span>
+        </header>
+
+        <div class="grid">
+          <section class="panel">
+            <h2>1. 本人確認</h2>
+            <p class="hint">デモでは任意の値で認証できます（マイナンバー等の個人情報は取得・送信しません）。</p>
+            <label>
+              証明書シリアル
+              <input id="certificateSerial" value="CERT-DEMO-000001" autocomplete="off" required aria-required="true" />
+            </label>
+            <label>
+              生年月日
+              <input id="birthdate" type="date" value="1980-01-01" required aria-required="true" />
+            </label>
+            <button id="authButton">認証</button>
+            <output id="authStatus" role="status" aria-live="polite">未認証</output>
+          </section>
+
+          <section class="panel">
+            <h2>2. 候補者選択</h2>
+            <div id="candidates" class="candidates" role="radiogroup" aria-label="候補者"></div>
+            <button id="voteButton" disabled>投票する</button>
+            <output id="voteStatus" role="status" aria-live="polite">候補者を選択してください</output>
+          </section>
+
+          <section class="panel span">
+            <div class="panel-heading">
+              <h2>公開掲示板</h2>
+              <div class="toolbar">
+                <label class="compact">
+                  receipt filter
+                  <input id="boardFilter" placeholder="receipt_hash部分一致" autocomplete="off" />
+                </label>
+                <button id="refreshButton">更新</button>
+              </div>
+            </div>
+            <div id="bulletinBoard" class="board" aria-live="polite"></div>
+          </section>
+
+          <section class="panel span">
+            <div class="panel-heading">
+              <h2>集計プレビュー</h2>
+              <button id="tallyButton">集計</button>
+            </div>
+            <div id="tally" class="tally" aria-live="polite"></div>
+          </section>
+
+          <section class="panel">
+            <h2>受領証の検証</h2>
+            <p class="hint" id="receiptHint">投票後に表示された receipt_hash を貼り付けて、公開掲示板に正しく記録されているか確認します。</p>
+            <label>
+              receipt_hash
+              <input id="receiptInput" placeholder="64桁の16進数" autocomplete="off" aria-describedby="receiptHint" />
+            </label>
+            <button id="receiptButton">検証</button>
+            <pre id="receiptResult" aria-live="polite"></pre>
+          </section>
+
+          <section class="panel">
+            <h2>運用メトリクス</h2>
+            <p class="hint">公開可能な集計値のみ（個別票や候補別票数は含まない）。</p>
+            <button id="metricsButton">取得</button>
+            <pre id="metricsResult" aria-live="polite"></pre>
+          </section>
+
+          <section class="panel">
+            <h2>監査ログ整合性</h2>
+            <p class="hint">ハッシュチェーンを再計算して、過去のログが改ざんされていないことを確認します。</p>
+            <div class="toolbar left">
+              <button id="auditButton">整合性チェック</button>
+              <button id="auditLogButton">ログ表示</button>
+            </div>
+            <pre id="auditResult" aria-live="polite"></pre>
+            <div id="auditLogTable" class="table" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer" role="contentinfo">
+      <p>Internet Voting System — ブラウザ内デモ（設計検証用プロトタイプ。実際の投票には使用できません）</p>
+    </footer>
+    <script src="./app.js"></script>
+  </body>
+</html>
